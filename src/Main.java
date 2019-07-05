@@ -69,7 +69,7 @@ public class Main {
         new Dex2jarCmd().doMain("temp/isolated.dex", "--force", "-o", "temp/isolated.jar");
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Downloads/barclays_original.jar:temp/isolated.jar:temp Isolated");
+        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Downloads/lloyds_original.jar:temp/isolated.jar:temp Isolated");
         try {
             int result = p.waitFor();
             System.out.println("Process exit code: " + result);
@@ -98,7 +98,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException {
-        InputStream input = new FileInputStream("data/ApplicationController.smali");
+        InputStream input = new FileInputStream("data/iwwiiw.smali");
         DexClassNode cn = Smali.smaliFile2Node("test.smali", input);
         for (Iterator<DexMethodNode> it = cn.methods.iterator(); it.hasNext(); ) {
             DexMethodNode m = it.next();
@@ -130,9 +130,11 @@ public class Main {
                 else if(stmtNode.op == Op.INVOKE_STATIC && currentString != null) {
                     MethodStmtNode mnn = (MethodStmtNode) stmtNode;
                     if(mnn.method.getReturnType().equals("Ljava/lang/String;")) {
-                        Stmt1RNode nextStmtNode = (Stmt1RNode) m.codeNode.stmts.get(stmtIndex + 1);
-                        stringResultRegister = nextStmtNode.a;
-                        statements.add(nextStmtNode);
+                        // we want to move this result to a register
+                        Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
+                        statements.add(moveStmtNode);
+                        stringResultRegister = 1;
+
                         constructClass();
                     }
 
