@@ -204,7 +204,7 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/lloyds-smali");
+        File analyzePath = new File("data/monzo-smali");
         List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
         System.out.println("Number of smali files: " + files.size());
 
@@ -217,37 +217,43 @@ public class Main {
         System.out.println("Starting to compute distance matrix of " + stringsCollection.size() + " items!");
 
         // compute distance matrix
-        double[][] distances = new double[stringsCollection.size()][stringsCollection.size()];
-        for(int i = 0; i < stringsCollection.size(); i++) {
-            for(int j = 0; j < stringsCollection.size(); j++) {
-                distances[i][j] = LevenshteinDistance.levenshteinDistance(stringsCollection.get(i).stringStatements, stringsCollection.get(j).stringStatements);
+        int MAX_ITEMS = 5000;
+
+        double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
+        for(int i = 0; i < MAX_ITEMS; i++) {
+            for(int j = 0; j < i; j++) {
+                double dist = LevenshteinDistance.levenshteinDistance(stringsCollection.get(i).stringStatements, stringsCollection.get(j).stringStatements);
+                distances[i][j] = dist;
+                distances[j][i] = dist;
             }
-            System.out.println(i);
+
+            if(i % 1000 == 0) { System.out.println(i); }
         }
 
         // write distance matrix
-        BufferedWriter br = new BufferedWriter(new FileWriter("distances.csv"));
-        StringBuilder sb = new StringBuilder();
-        for (double[] arr : distances) {
-            for(int i = 0; i < arr.length; i++) {
-                sb.append(arr[i]);
-                if(i != arr.length - 1) {
-                    sb.append(",");
-                }
-            }
-            sb.append("\n");
-        }
-        br.write(sb.toString());
-        br.close();
+//        BufferedWriter br = new BufferedWriter(new FileWriter("distances.csv"));
+//        StringBuilder sb = new StringBuilder();
+//        for (double[] arr : distances) {
+//            for(int i = 0; i < arr.length; i++) {
+//                sb.append(arr[i]);
+//                if(i != arr.length - 1) {
+//                    sb.append(",");
+//                }
+//            }
+//            sb.append("\n");
+//        }
+//        br.write(sb.toString());
+//        br.close();
 
-        String[] names = new String[stringsCollection.size()];
-        for(int i = 0; i < stringsCollection.size(); i++) {
+        String[] names = new String[MAX_ITEMS];
+        for(int i = 0; i < MAX_ITEMS; i++) {
             names[i] = "" + i;
         }
 
+        System.out.println("Clustering...");
         HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
-        int[] membership = hac.partition(10);
-        for(int cluster = 0; cluster < 10; cluster++) {
+        int[] membership = hac.partition(9);
+        for(int cluster = 0; cluster < 9; cluster++) {
             ArrayList<Integer> belongsTo = new ArrayList<>();
             for(int i = 0; i < membership.length; i++) {
                 if(membership[i] == cluster) { belongsTo.add(i); }
@@ -258,15 +264,15 @@ public class Main {
             int decrypted = 0;
             for(int i = 0; i < belongsTo.size(); i++) {
                 EncryptedStringDecryption item = stringsCollection.get(belongsTo.get(i));
-                if(item.file.getPath().contains("data/lloyds-smali/iiiiii")) { encrypted++; }
+                if(item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
                 else { decrypted++; }
-                //System.out.println("File: " + item.file.getPath() + ", item: " + belongsTo.get(i) + ", str: " + item.encryptedString);
+                System.out.println("C " + cluster + ", file: " + item.file.getPath() + ", item: " + belongsTo.get(i) + ", str: " + item.encryptedString);
+                System.out.println(item.stringStatements);
             }
             System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
         }
 
 //        for(int k = 2; k <= 50; k++) {
-//            HierarchicalClustering hac = new HierarchicalClustering(new CompleteLinkage(distances));
 //            int[] membership = hac.partition(k);
 //            //System.out.println("k: " + k);
 //            //System.out.println(Arrays.toString(membership));
@@ -283,7 +289,7 @@ public class Main {
 //                for(int i = 0; i < belongsTo.size(); i++) {
 //                    for(int j = 0; j < belongsTo.size(); j++) {
 //                        if(i == j) { continue; }
-//                        totalDistance += distances[i][j];
+//                        totalDistance += distances[belongsTo.get(i)][belongsTo.get(j)];
 //                    }
 //                }
 //                res += totalDistance;
