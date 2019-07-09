@@ -31,8 +31,10 @@ public class Main {
     private static ArrayList<EncryptedStringDecryption> stringsCollection = new ArrayList<>();
 
     private static void constructClass(File currentFile) throws IOException {
-        EncryptedStringDecryption dec = new EncryptedStringDecryption(currentFile, currentString, statements);
-        stringsCollection.add(dec);
+        if(statements.size() > 2) {
+            EncryptedStringDecryption dec = new EncryptedStringDecryption(currentFile, currentString, statements);
+            stringsCollection.add(dec);
+        }
 
         currentString = null;
         statements = new ArrayList<>();
@@ -113,7 +115,7 @@ public class Main {
     }
 
     private static void processSmaliFiles(File smaliFile) throws IOException {
-        System.out.println("Processing file: " + smaliFile.getPath());
+        //System.out.println("Processing file: " + smaliFile.getPath());
         InputStream input = new FileInputStream(smaliFile);
         DexClassNode cn = null;
         try {
@@ -191,6 +193,18 @@ public class Main {
         statements = new ArrayList<>();
     }
 
+    public static double cosineSimilarity(double[] vectorA, double[] vectorB) {
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+        for (int i = 0; i < vectorA.length; i++) {
+            dotProduct += vectorA[i] * vectorB[i];
+            normA += Math.pow(vectorA[i], 2);
+            normB += Math.pow(vectorB[i], 2);
+        }
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
     public static void main(String[] args) throws IOException {
 //        File jarFile = new File("data/barclays.jar");
 //        if(!jarFile.exists()) {
@@ -204,7 +218,7 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/monzo-smali");
+        File analyzePath = new File("data/lloyds-smali");
         List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
         System.out.println("Number of smali files: " + files.size());
 
@@ -216,13 +230,16 @@ public class Main {
 
         System.out.println("Starting to compute distance matrix of " + stringsCollection.size() + " items!");
 
+        Collections.shuffle(stringsCollection, new Random(1));
+
         // compute distance matrix
-        int MAX_ITEMS = 5000;
+        int MAX_ITEMS = Math.min(stringsCollection.size(), 6000);
 
         double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
         for(int i = 0; i < MAX_ITEMS; i++) {
             for(int j = 0; j < i; j++) {
-                double dist = LevenshteinDistance.levenshteinDistance(stringsCollection.get(i).stringStatements, stringsCollection.get(j).stringStatements);
+                double dist = 1 - cosineSimilarity(stringsCollection.get(i).nGramVector, stringsCollection.get(j).nGramVector);
+                //double dist = LevenshteinDistance.levenshteinDistance(stringsCollection.get(i).stringStatements, stringsCollection.get(j).stringStatements);
                 distances[i][j] = dist;
                 distances[j][i] = dist;
             }
@@ -253,7 +270,7 @@ public class Main {
         System.out.println("Clustering...");
         HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
         int[] membership = hac.partition(9);
-        for(int cluster = 0; cluster < 9; cluster++) {
+        for(int cluster = 0; cluster < 1; cluster++) {
             ArrayList<Integer> belongsTo = new ArrayList<>();
             for(int i = 0; i < membership.length; i++) {
                 if(membership[i] == cluster) { belongsTo.add(i); }
@@ -264,12 +281,19 @@ public class Main {
             int decrypted = 0;
             for(int i = 0; i < belongsTo.size(); i++) {
                 EncryptedStringDecryption item = stringsCollection.get(belongsTo.get(i));
-                if(item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
+                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
                 else { decrypted++; }
                 System.out.println("C " + cluster + ", file: " + item.file.getPath() + ", item: " + belongsTo.get(i) + ", str: " + item.encryptedString);
                 System.out.println(item.stringStatements);
             }
             System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
+        }
+
+        double totalDistance = 0;
+        for(int i = 0; i < MAX_ITEMS; i++) {
+            for(int j = 0; j < MAX_ITEMS; j++) {
+                totalDistance += distances[i][j];
+            }
         }
 
 //        for(int k = 2; k <= 50; k++) {
@@ -280,7 +304,7 @@ public class Main {
 //            double res = 0;
 //
 //            for(int cluster = 0; cluster < k; cluster++) {
-//                int totalDistance = 0;
+//                double clusterDistance = 0;
 //                ArrayList<Integer> belongsTo = new ArrayList<>();
 //                for(int i = 0; i < membership.length; i++) {
 //                    if(membership[i] == cluster) { belongsTo.add(i); }
@@ -289,13 +313,14 @@ public class Main {
 //                for(int i = 0; i < belongsTo.size(); i++) {
 //                    for(int j = 0; j < belongsTo.size(); j++) {
 //                        if(i == j) { continue; }
-//                        totalDistance += distances[belongsTo.get(i)][belongsTo.get(j)];
+//                        clusterDistance += distances[belongsTo.get(i)][belongsTo.get(j)];
 //                    }
 //                }
-//                res += totalDistance;
-//                //System.out.println("Members in cluster: " + belongsTo.size());
+//                res += clusterDistance;
+//                System.out.println("Members in cluster: " + belongsTo.size());
 //            }
-//            System.out.println(k + "," + res);
+//            res /= totalDistance;
+//            System.out.println("monzo," + k + "," + res);
 //        }
     }
 }

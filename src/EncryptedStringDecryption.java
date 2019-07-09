@@ -11,6 +11,7 @@ public class EncryptedStringDecryption {
     public String encryptedString;
     public ArrayList<DexStmtNode> statements;
     public ArrayList<String> stringStatements = new ArrayList<>();
+    public double[] nGramVector = new double[255];
 
     public EncryptedStringDecryption(File file, String encryptedString, ArrayList<DexStmtNode> statements) {
         this.file = file;
@@ -20,6 +21,7 @@ public class EncryptedStringDecryption {
         for(DexStmtNode node : statements) {
             if(node instanceof DexLabelStmtNode) { continue; }
             stringStatements.add(node.op.toString());
+            nGramVector[node.op.opcode]++;
         }
     }
 }
