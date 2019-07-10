@@ -136,11 +136,12 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/monzo-smali");
+        File analyzePath = new File("data/lloyds-smali");
         List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
         System.out.println("Number of smali files: " + files.size());
 
         for(File smaliFile : files) {
+            //System.out.println("Processing file " + smaliFile.getPath());
             SmaliFileParser parser = new SmaliFileParser(smaliFile);
             parser.process();
             snippets.addAll(parser.snippets);
@@ -186,8 +187,8 @@ public class Main {
 
         System.out.println("Clustering...");
         HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
-        int[] membership = hac.partition(20);
-        for(int cluster = 0; cluster < 20; cluster++) {
+        int[] membership = hac.partition(10);
+        for(int cluster = 0; cluster < 10; cluster++) {
             ArrayList<Integer> belongsTo = new ArrayList<>();
             for(int i = 0; i < membership.length; i++) {
                 if(membership[i] == cluster) { belongsTo.add(i); }
@@ -237,7 +238,7 @@ public class Main {
                 withinDist += dist;
             }
 
-            System.out.println(Math.sqrt(withinDist));
+            //System.out.println(Math.sqrt(withinDist));
         }
 
 //        double totalDistance = 0;
