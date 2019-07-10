@@ -1,43 +1,20 @@
-import com.googlecode.d2j.Field;
-import com.googlecode.d2j.Method;
-import com.googlecode.d2j.node.DexClassNode;
-import com.googlecode.d2j.node.DexCodeNode;
-import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.*;
-import com.googlecode.d2j.reader.Op;
-import com.googlecode.d2j.smali.BaksmaliCmd;
-import com.googlecode.d2j.smali.BaksmaliDumper;
-import com.googlecode.d2j.smali.Smali;
-import com.googlecode.d2j.smali.SmaliCmd;
-import com.googlecode.dex2jar.tools.Dex2jarCmd;
+import javafx.util.Pair;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.DirectoryFileFilter;
-import org.apache.commons.io.filefilter.RegexFileFilter;
 import smile.clustering.HierarchicalClustering;
-import smile.clustering.linkage.CompleteLinkage;
 import smile.clustering.linkage.WardLinkage;
 
-import javax.swing.*;
 import java.io.*;
 import java.util.*;
 
-import static com.googlecode.d2j.DexConstants.ACC_PUBLIC;
-import static com.googlecode.d2j.DexConstants.ACC_STATIC;
-
 public class Main {
-    private static String currentString = null;
-    private static int stringResultRegister = 0;
-    private static ArrayList<DexStmtNode> statements = new ArrayList<>();
-    private static ArrayList<EncryptedStringDecryption> stringsCollection = new ArrayList<>();
+    private static ArrayList<StringSnippet> snippets = new ArrayList<>();
 
     private static void constructClass(File currentFile) throws IOException {
-        if(statements.size() > 2) {
-            EncryptedStringDecryption dec = new EncryptedStringDecryption(currentFile, currentString, statements);
-            stringsCollection.add(dec);
-        }
-
-        currentString = null;
-        statements = new ArrayList<>();
+//        if(statements.size() > 2 && currentStringIsConsumed) {
+//            StringSnippet dec = new StringSnippet(currentFile, currentString, statements);
+//            stringsCollection.add(dec);
+//        }
 
 //        String[] paramTypes = {"[Ljava/lang/String;"};
 //        Method m = new Method("LIsolated", "main", paramTypes, "V");
@@ -111,97 +88,38 @@ public class Main {
 //        }
 
 //        currentString = null;
+//        currentStringIsConsumed = false;
 //        statements = new ArrayList<>();
     }
 
-    private static void processSmaliFiles(File smaliFile) throws IOException {
-        //System.out.println("Processing file: " + smaliFile.getPath());
-        InputStream input = new FileInputStream(smaliFile);
-        DexClassNode cn = null;
-        try {
-            cn = Smali.smaliFile2Node("test.smali", input);
-        } catch (Exception e) {
-            System.out.println("Could not parse file " + smaliFile.getPath());
-            return;
-        }
-
-        if(cn.methods == null) {
-            return;
-        }
-
-        for (Iterator<DexMethodNode> it = cn.methods.iterator(); it.hasNext(); ) {
-            DexMethodNode m = it.next();
-            //System.out.println("Method: " + m.method.getName());
-            for(int stmtIndex = 0; stmtIndex < m.codeNode.stmts.size(); stmtIndex++ ) {
-                DexStmtNode stmtNode = m.codeNode.stmts.get(stmtIndex);
-                if(currentString != null && stmtNode.op != Op.CONST_STRING) { statements.add(stmtNode); }
-
-                if(stmtNode.op == Op.CONST_STRING) {
-                    ConstStmtNode cnn = (ConstStmtNode) stmtNode;
-                    String stringValue = cnn.value.toString();
-
-                    if(currentString != null) {
-                        //throw new RuntimeException("Already parsing string!");
-
-                        // for now, start a new sequence
-                        Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
-                        statements.add(moveStmtNode);
-                        stringResultRegister = 1;
-                        constructClass(smaliFile);
-
-                        statements.add(stmtNode);
-                        currentString = cnn.value.toString();
-                        continue;
-                    }
-
-                    if(stringValue.length() > 0) {
-                        currentString = stringValue;
-                        statements.add(stmtNode);
-                    }
-                }
-
-                if(stmtNode.op == Op.INVOKE_DIRECT && currentString != null) {
-                    MethodStmtNode mnn = (MethodStmtNode) stmtNode;
-                    stringResultRegister = mnn.args[0]; // first argument is always the string itself
-                    if(mnn.method.getName().equals("<init>") && mnn.method.getOwner().equals("Ljava/lang/String;")) {
-                        constructClass(smaliFile);
-                    }
-                }
-                else if(stmtNode.op == Op.INVOKE_STATIC && currentString != null) {
-                    MethodStmtNode mnn = (MethodStmtNode) stmtNode;
-                    if(mnn.method.getReturnType().equals("Ljava/lang/String;")) {
-                        // we want to move this result to a register
-                        Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
-                        statements.add(moveStmtNode);
-                        stringResultRegister = 1;
-                        constructClass(smaliFile);
-                    }
-
-                }
-            }
-
-            if(currentString != null) {
-                // method ended while doing stuff with a string, finish properly
-                Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
-                statements.add(moveStmtNode);
-                stringResultRegister = 1;
-                constructClass(smaliFile);
-            }
-        }
-
-        currentString = null;
-        statements = new ArrayList<>();
-    }
-
-    public static double cosineSimilarity(double[] vectorA, double[] vectorB) {
+    public static double cosineSimilarity(HashMap<Pair<Integer, Integer>, Integer> mapA, HashMap<Pair<Integer, Integer>, Integer> mapB) {
         double dotProduct = 0.0;
         double normA = 0.0;
         double normB = 0.0;
-        for (int i = 0; i < vectorA.length; i++) {
-            dotProduct += vectorA[i] * vectorB[i];
-            normA += Math.pow(vectorA[i], 2);
-            normB += Math.pow(vectorB[i], 2);
+
+        // we first need the dot product -> will only result if there is overlap
+        Set<Pair<Integer, Integer>> keysA = mapA.keySet();
+        Set<Pair<Integer, Integer>> keysB = mapB.keySet();
+        Set<Pair<Integer, Integer>> intersection = new HashSet<>(keysA);
+        intersection.retainAll(keysB);
+
+        for(Pair<Integer, Integer> pair : intersection) {
+            dotProduct += mapA.get(pair) * mapB.get(pair);
         }
+
+        // compute normalization values
+        Iterator it = mapA.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry pair = (Map.Entry)it.next();
+            normA += Math.pow((Integer)pair.getValue(), 2);
+        }
+
+        it = mapB.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry pair = (Map.Entry)it.next();
+            normB += Math.pow((Integer)pair.getValue(), 2);
+        }
+
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
@@ -218,28 +136,27 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/lloyds-smali");
+        File analyzePath = new File("data/monzo-smali");
         List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
         System.out.println("Number of smali files: " + files.size());
 
         for(File smaliFile : files) {
-            processSmaliFiles(smaliFile);
+            SmaliFileParser parser = new SmaliFileParser(smaliFile);
+            parser.process();
+            snippets.addAll(parser.snippets);
         }
 
-        //processSmaliFiles(new File("data/lloyds-smali/android/support/v4/media/session/MediaSessionCompat$MediaSessionImplApi18.smali"));
+        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
 
-        System.out.println("Starting to compute distance matrix of " + stringsCollection.size() + " items!");
-
-        Collections.shuffle(stringsCollection, new Random(1));
+        Collections.shuffle(snippets, new Random(1));
 
         // compute distance matrix
-        int MAX_ITEMS = Math.min(stringsCollection.size(), 6000);
+        int MAX_ITEMS = Math.min(snippets.size(), 6000);
 
         double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
         for(int i = 0; i < MAX_ITEMS; i++) {
             for(int j = 0; j < i; j++) {
-                double dist = 1 - cosineSimilarity(stringsCollection.get(i).nGramVector, stringsCollection.get(j).nGramVector);
-                //double dist = LevenshteinDistance.levenshteinDistance(stringsCollection.get(i).stringStatements, stringsCollection.get(j).stringStatements);
+                double dist = 1 - cosineSimilarity(snippets.get(i).frequencyMap, snippets.get(j).frequencyMap);
                 distances[i][j] = dist;
                 distances[j][i] = dist;
             }
@@ -269,8 +186,8 @@ public class Main {
 
         System.out.println("Clustering...");
         HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
-        int[] membership = hac.partition(9);
-        for(int cluster = 0; cluster < 1; cluster++) {
+        int[] membership = hac.partition(20);
+        for(int cluster = 0; cluster < 20; cluster++) {
             ArrayList<Integer> belongsTo = new ArrayList<>();
             for(int i = 0; i < membership.length; i++) {
                 if(membership[i] == cluster) { belongsTo.add(i); }
@@ -280,23 +197,56 @@ public class Main {
             int encrypted = 0;
             int decrypted = 0;
             for(int i = 0; i < belongsTo.size(); i++) {
-                EncryptedStringDecryption item = stringsCollection.get(belongsTo.get(i));
+                StringSnippet item = snippets.get(belongsTo.get(i));
                 if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
                 else { decrypted++; }
-                System.out.println("C " + cluster + ", file: " + item.file.getPath() + ", item: " + belongsTo.get(i) + ", str: " + item.encryptedString);
-                System.out.println(item.stringStatements);
+                System.out.println("C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
+                System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
             }
-            System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
+            //System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
+
+            // compute sum of squares within cluster
+
+            // compute centroid
+            double[] clusterCentroid = new double[255 * 255];
+            for(int i = 0; i < belongsTo.size(); i++) {
+                int index = belongsTo.get(i);
+                HashMap<Pair<Integer, Integer>, Integer> frequencyMap = snippets.get(index).frequencyMap;
+
+                for(Pair<Integer, Integer> key : frequencyMap.keySet()) {
+                    int code = key.getKey() * 255 + key.getValue();
+                    clusterCentroid[code] += frequencyMap.get(key);
+                }
+            }
+
+            // normalize
+            double withinDist = 0;
+            for(int i = 0; i < 255 * 255; i++) {
+                clusterCentroid[i] /= belongsTo.size();
+            }
+
+            for(int i = 0; i < belongsTo.size(); i++) {
+                int index = belongsTo.get(i);
+                double[] vector = snippets.get(index).toVector();
+
+                // compute distance from centroid
+                double dist = 0;
+                for(int j = 0; j < 255 * 255; j++) {
+                    dist += Math.pow(clusterCentroid[j] - vector[j], 2);
+                }
+                withinDist += dist;
+            }
+
+            System.out.println(Math.sqrt(withinDist));
         }
 
-        double totalDistance = 0;
-        for(int i = 0; i < MAX_ITEMS; i++) {
-            for(int j = 0; j < MAX_ITEMS; j++) {
-                totalDistance += distances[i][j];
-            }
-        }
-
-//        for(int k = 2; k <= 50; k++) {
+//        double totalDistance = 0;
+//        for(int i = 0; i < MAX_ITEMS; i++) {
+//            for(int j = 0; j < MAX_ITEMS; j++) {
+//                totalDistance += distances[i][j];
+//            }
+//        }
+//        for(int k = 2; k <= 20; k++) {
 //            int[] membership = hac.partition(k);
 //            //System.out.println("k: " + k);
 //            //System.out.println(Arrays.toString(membership));
