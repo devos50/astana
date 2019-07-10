@@ -2,6 +2,7 @@ import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
+import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
 
 import java.io.File;
@@ -37,13 +38,18 @@ public class StringSnippet {
         return vector;
     }
 
+    private int normalizeOpCode(int opcode) {
+        if(opcode == Op.CONST_4.opcode) { opcode = Op.CONST_16.opcode; }
+        return opcode;
+    }
+
     public void finalize() {
         for(int i = 0; i < statements.size(); i++) {
             DexStmtNode node = statements.get(i);
             stringStatements.add(node.op.toString());
             if(i != statements.size() - 1) {
                 DexStmtNode nextNode = statements.get(i + 1);
-                Pair<Integer, Integer> pair = new Pair<>(node.op.opcode, nextNode.op.opcode);
+                Pair<Integer, Integer> pair = new Pair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
                 if(!frequencyMap.containsKey(pair)) {
                     frequencyMap.put(pair, 0);
                 }

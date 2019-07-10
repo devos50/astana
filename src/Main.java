@@ -152,7 +152,7 @@ public class Main {
         Collections.shuffle(snippets, new Random(1));
 
         // compute distance matrix
-        int MAX_ITEMS = Math.min(snippets.size(), 6000);
+        int MAX_ITEMS = Math.min(snippets.size(), 7000);
 
         double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
         for(int i = 0; i < MAX_ITEMS; i++) {
@@ -201,9 +201,15 @@ public class Main {
                 StringSnippet item = snippets.get(belongsTo.get(i));
                 if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
                 else { decrypted++; }
-                System.out.println("C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
-                System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
+
+                //System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
             }
+
+            for(int i = 0; i < belongsTo.size(); i++) {
+                StringSnippet item = snippets.get(belongsTo.get(i));
+                //System.out.println("Item " + belongsTo.get(i) + ", C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
+            }
+
             //System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
 
             // compute sum of squares within cluster
@@ -238,7 +244,7 @@ public class Main {
                 withinDist += dist;
             }
 
-            //System.out.println(Math.sqrt(withinDist));
+            System.out.println(Math.sqrt(withinDist));
         }
 
 //        double totalDistance = 0;

@@ -10,7 +10,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SmaliFileParser {
 
@@ -25,8 +27,10 @@ public class SmaliFileParser {
     public StringSnippet processString(DexMethodNode methodNode, int statementIndex) {
         ConstStmtNode stringInitNode = (ConstStmtNode) methodNode.codeNode.stmts.get(statementIndex);
         StringSnippet snippet = new StringSnippet(this.smaliFile, methodNode, stringInitNode);
+        int stringInitStatementIndex = statementIndex;
         int currentStatementIndex = statementIndex;
         List<DexLabel> jumpedTo = new ArrayList<>();
+        Set<Integer> definedVariables = new HashSet<>();
 
         while(true) {
             if(currentStatementIndex >= methodNode.codeNode.stmts.size()) {
@@ -36,7 +40,7 @@ public class SmaliFileParser {
             DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentStatementIndex);
 
             // if we are returning the string, bail out
-            // TODO we assume registers are not edited!
+            // TODO we assume registers are not edited in-between! We need to better track the string...
             if(currentNode.op == Op.RETURN_OBJECT) {
                 Stmt1RNode castNode = (Stmt1RNode) currentNode;
                 if(castNode.a == stringInitNode.a) {
@@ -85,6 +89,11 @@ public class SmaliFileParser {
 
             if(!(currentNode instanceof DexLabelStmtNode)) {
                 snippet.statements.add(currentNode);
+
+                if(currentNode instanceof ConstStmtNode) {
+                    ConstStmtNode constStmtNode = (ConstStmtNode) currentNode;
+                    definedVariables.add(constStmtNode.a);
+                }
             }
 
             if(currentNode.op == Op.INVOKE_DIRECT) {
@@ -96,6 +105,24 @@ public class SmaliFileParser {
             else if(currentNode.op == Op.INVOKE_STATIC) {
                 MethodStmtNode mnn = (MethodStmtNode) currentNode;
                 if(mnn.method.getReturnType().equals("Ljava/lang/String;") && mnn.args.length > 0) {
+                    // we found a static invocation that returns a string. Find the variables that are not defined yet and look for them
+                    // TODO: assume this variable is set with a const statement (it could ofcourse also be a return value of a function)
+                    for(int arg : mnn.args) {
+                        if(!definedVariables.contains(arg)) {
+                            // look for this variable
+                            for(int currentBackIndex = stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
+                                DexStmtNode currentStmtNode = methodNode.codeNode.stmts.get(currentBackIndex);
+                                if(currentStmtNode instanceof ConstStmtNode) {
+                                    ConstStmtNode currentConstStmtNode = (ConstStmtNode) currentStmtNode;
+                                    if(currentConstStmtNode.a == arg) {
+                                        snippet.statements.add(1, currentStmtNode); // add it after the const-string definition
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // we want to move this result to a register
                     Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
                     snippet.statements.add(moveStmtNode);
@@ -106,7 +133,9 @@ public class SmaliFileParser {
             currentStatementIndex += 1;
         }
 
-        if(snippet.statements.size() <= 2) { return null; }
+        if(snippet.statements.size() <= 2) {
+            return null;
+        }
 
         snippet.finalize();
         return snippet;
