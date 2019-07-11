@@ -1,6 +1,5 @@
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
-import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
@@ -17,6 +16,7 @@ public class StringSnippet {
     public List<DexStmtNode> statements;
     public ArrayList<String> stringStatements = new ArrayList<>();
     public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
+    public int stringResultRegister = 0;
 
     public StringSnippet(File file, DexMethodNode methodNode, ConstStmtNode stringInitNode) {
         this.file = file;
@@ -40,20 +40,26 @@ public class StringSnippet {
 
     private int normalizeOpCode(int opcode) {
         if(opcode == Op.CONST_4.opcode) { opcode = Op.CONST_16.opcode; }
+        if(opcode == Op.CONST_STRING_JUMBO.opcode) { opcode = Op.CONST_STRING.opcode; }
         return opcode;
     }
 
     public void finalize() {
         for(int i = 0; i < statements.size(); i++) {
             DexStmtNode node = statements.get(i);
-            stringStatements.add(node.op.toString());
+            if(node.op != null) {
+                stringStatements.add(node.op.toString());
+            }
             if(i != statements.size() - 1) {
                 DexStmtNode nextNode = statements.get(i + 1);
-                Pair<Integer, Integer> pair = new Pair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
-                if(!frequencyMap.containsKey(pair)) {
-                    frequencyMap.put(pair, 0);
+                if(node.op != null && nextNode.op != null) {
+                    Pair<Integer, Integer> pair = new Pair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
+                    if(!frequencyMap.containsKey(pair)) {
+                        frequencyMap.put(pair, 0);
+                    }
+                    frequencyMap.put(pair, frequencyMap.get(pair) + 1);
                 }
-                frequencyMap.put(pair, frequencyMap.get(pair) + 1);
+
             }
         }
     }

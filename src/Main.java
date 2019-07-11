@@ -10,88 +10,6 @@ import java.util.*;
 public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
 
-    private static void constructClass(File currentFile) throws IOException {
-//        if(statements.size() > 2 && currentStringIsConsumed) {
-//            StringSnippet dec = new StringSnippet(currentFile, currentString, statements);
-//            stringsCollection.add(dec);
-//        }
-
-//        String[] paramTypes = {"[Ljava/lang/String;"};
-//        Method m = new Method("LIsolated", "main", paramTypes, "V");
-//        DexMethodNode mn = new DexMethodNode(ACC_PUBLIC | ACC_STATIC, m);
-//        DexCodeNode cn = new DexCodeNode();
-//        cn.stmts = statements;
-//        mn.codeNode = cn;
-//
-//        // add the print statement and return-void
-//        Field f = new Field("Ljava/lang/System;", "out", "Ljava/io/PrintStream;");
-//        int printReg = (stringResultRegister == 0) ? 1 : 0;
-//        FieldStmtNode fsn = new FieldStmtNode(Op.SGET_OBJECT, printReg, 0, f);
-//        cn.stmts.add(fsn);
-//
-//        paramTypes = new String[]{"Ljava/lang/String;"};
-//        Method printMethod = new Method("Ljava/io/PrintStream;", "println", paramTypes, "V");
-//        int[] args = {printReg, stringResultRegister};
-//        MethodStmtNode msn = new MethodStmtNode(Op.INVOKE_VIRTUAL, args, printMethod);
-//        cn.stmts.add(msn);
-//
-//        Stmt0RNode returnVoidStmt = new Stmt0RNode(Op.RETURN_VOID);
-//        cn.stmts.add(returnVoidStmt);
-//        cn.visitRegister(20);
-//
-//        // create the class
-//        DexClassNode classNode = new DexClassNode(ACC_PUBLIC, "LIsolated;", "Ljava/lang/Object;", null);
-//        classNode.methods = new ArrayList<>();
-//        classNode.methods.add(mn);
-//
-//        // convert to smali
-//        BaksmaliDumper dumper = new BaksmaliDumper(false, true);
-//        FileWriter fw = new FileWriter("temp/isolated.smali");
-//        BufferedWriter log = new BufferedWriter(fw);
-//        dumper.baksmaliClass(classNode, log);
-//        try {
-//            log.flush();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        // convert to .dex
-//        new SmaliCmd().doMain("temp/Isolated.smali", "-o", "temp/isolated.dex");
-//
-//        // convert to .jar
-//        new Dex2jarCmd().doMain("temp/isolated.dex", "--force", "-o", "temp/isolated.jar");
-//
-//        // run the jar
-//        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/barclays_original.jar:temp/isolated.jar:temp Isolated");
-//        try {
-//            int result = p.waitFor();
-//            System.out.println("Process exit code: " + result);
-//            System.out.println();
-//            System.out.println("Result:");
-//            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-//            String line = "";
-//            while ((line = reader.readLine()) != null) {
-//                System.out.println(line);
-//            }
-//
-//            reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-//            while ((line = reader.readLine()) != null) {
-//                System.out.println(line);
-//            }
-//
-//            if(result != 0) {
-//                System.exit(1);
-//            }
-//
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-
-//        currentString = null;
-//        currentStringIsConsumed = false;
-//        statements = new ArrayList<>();
-    }
-
     public static double cosineSimilarity(HashMap<Pair<Integer, Integer>, Integer> mapA, HashMap<Pair<Integer, Integer>, Integer> mapB) {
         double dotProduct = 0.0;
         double normA = 0.0;
@@ -136,15 +54,25 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/lloyds-smali");
-        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
-        System.out.println("Number of smali files: " + files.size());
+//        File analyzePath = new File("data/lloyds-smali");
+//        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
+//        System.out.println("Number of smali files: " + files.size());
+//
+//        for(File smaliFile : files) {
+//            //System.out.println("Processing file " + smaliFile.getPath());
+//            SmaliFileParser parser = new SmaliFileParser(smaliFile);
+//            parser.process();
+//            snippets.addAll(parser.snippets);
+//        }
 
-        for(File smaliFile : files) {
-            //System.out.println("Processing file " + smaliFile.getPath());
-            SmaliFileParser parser = new SmaliFileParser(smaliFile);
-            parser.process();
-            snippets.addAll(parser.snippets);
+        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/dsssdd.smali"));
+        parser.process();
+        snippets.addAll(parser.snippets);
+
+        for(StringSnippet snippet : snippets) {
+            if(snippet.getString().contains("Tfxlx")) {
+                StringDecryptor.decrypt(snippet);
+            }
         }
 
         System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
@@ -187,8 +115,8 @@ public class Main {
 
         System.out.println("Clustering...");
         HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
-        int[] membership = hac.partition(10);
-        for(int cluster = 0; cluster < 10; cluster++) {
+        int[] membership = hac.partition(9);
+        for(int cluster = 0; cluster < 9; cluster++) {
             ArrayList<Integer> belongsTo = new ArrayList<>();
             for(int i = 0; i < membership.length; i++) {
                 if(membership[i] == cluster) { belongsTo.add(i); }
@@ -202,12 +130,12 @@ public class Main {
                 if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
                 else { decrypted++; }
 
-                //System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
+                System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
             }
 
             for(int i = 0; i < belongsTo.size(); i++) {
                 StringSnippet item = snippets.get(belongsTo.get(i));
-                //System.out.println("Item " + belongsTo.get(i) + ", C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
+                System.out.println("Item " + belongsTo.get(i) + ", C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
             }
 
             //System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
