@@ -1,12 +1,14 @@
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
+import com.googlecode.d2j.node.insn.Stmt1RNode;
 import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 
 public class StringSnippet {
@@ -44,7 +46,57 @@ public class StringSnippet {
         return opcode;
     }
 
+    private void prune(RegisterDependencyGraph graph) {
+        // prune nodes that do not "contribute" towards the end result.
+        // first, we do a BFS, starting from the last node, and mark visited nodes.
+        // TODO remove unvisited nodes
+        // TODO we assume the last statement is a move-result(-object)
+
+        DexStmtNode lastStmtNode = statements.get(statements.size() - 1);
+        if(lastStmtNode.op != Op.MOVE_RESULT_OBJECT) {
+            throw new RuntimeException("Pruning: last node not move-result-object!");
+        }
+
+        Stmt1RNode moveStmtNode = (Stmt1RNode) lastStmtNode;
+        RegisterDependencyNode rootNode = graph.activeRegister.get(moveStmtNode.a);
+
+        List<RegisterDependencyNode> visited = new ArrayList<>();
+        LinkedList<RegisterDependencyNode> queue = new LinkedList<>();
+        visited.add(rootNode);
+        queue.add(rootNode);
+
+        while(!queue.isEmpty()) {
+            RegisterDependencyNode currentNode = queue.remove();
+            List<RegisterDependencyNode> adjacent = graph.adjacency.get(currentNode);
+            for(RegisterDependencyNode adjacentNode : adjacent) {
+                if(!visited.contains(adjacentNode)) {
+                    visited.add(adjacentNode);
+                    queue.add(adjacentNode);
+                }
+            }
+        }
+
+        ArrayList<DexStmtNode> toRemove = new ArrayList<>();
+        for(RegisterDependencyNode graphNode : graph.adjacency.keySet()) {
+            if(!visited.contains(graphNode)) {
+                // remove all statements related to this node
+                for(int i = 0; i < statements.size(); i++) {
+                    if(graph.statementToRegister[i] == graphNode) {
+                        toRemove.add(statements.get(i));
+                    }
+                }
+            }
+        }
+
+        statements.removeAll(toRemove);
+        System.out.println("Pruned " + toRemove.size() + " statements!");
+    }
+
     public void finalize() {
+        RegisterDependencyGraph graph = new RegisterDependencyGraph(this);
+        graph.build();
+        prune(graph);
+
         for(int i = 0; i < statements.size(); i++) {
             DexStmtNode node = statements.get(i);
             if(node.op != null) {

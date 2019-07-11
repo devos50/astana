@@ -70,28 +70,26 @@ public class Main {
         snippets.addAll(parser.snippets);
 
         for(StringSnippet snippet : snippets) {
-            if(snippet.getString().contains("Tfxlx")) {
-                StringDecryptor.decrypt(snippet);
-            }
+            StringDecryptor.decrypt(snippet);
         }
 
-        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
-
-        Collections.shuffle(snippets, new Random(1));
-
-        // compute distance matrix
-        int MAX_ITEMS = Math.min(snippets.size(), 7000);
-
-        double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
-        for(int i = 0; i < MAX_ITEMS; i++) {
-            for(int j = 0; j < i; j++) {
-                double dist = 1 - cosineSimilarity(snippets.get(i).frequencyMap, snippets.get(j).frequencyMap);
-                distances[i][j] = dist;
-                distances[j][i] = dist;
-            }
-
-            if(i % 1000 == 0) { System.out.println(i); }
-        }
+//        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
+//
+//        Collections.shuffle(snippets, new Random(1));
+//
+//        // compute distance matrix
+//        int MAX_ITEMS = Math.min(snippets.size(), 7000);
+//
+//        double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
+//        for(int i = 0; i < MAX_ITEMS; i++) {
+//            for(int j = 0; j < i; j++) {
+//                double dist = 1 - cosineSimilarity(snippets.get(i).frequencyMap, snippets.get(j).frequencyMap);
+//                distances[i][j] = dist;
+//                distances[j][i] = dist;
+//            }
+//
+//            if(i % 1000 == 0) { System.out.println(i); }
+//        }
 
         // write distance matrix
 //        BufferedWriter br = new BufferedWriter(new FileWriter("distances.csv"));
@@ -108,72 +106,72 @@ public class Main {
 //        br.write(sb.toString());
 //        br.close();
 
-        String[] names = new String[MAX_ITEMS];
-        for(int i = 0; i < MAX_ITEMS; i++) {
-            names[i] = "" + i;
-        }
-
-        System.out.println("Clustering...");
-        HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
-        int[] membership = hac.partition(9);
-        for(int cluster = 0; cluster < 9; cluster++) {
-            ArrayList<Integer> belongsTo = new ArrayList<>();
-            for(int i = 0; i < membership.length; i++) {
-                if(membership[i] == cluster) { belongsTo.add(i); }
-            }
-            System.out.println("Members in cluster " + cluster + ": " + belongsTo.size());
-
-            int encrypted = 0;
-            int decrypted = 0;
-            for(int i = 0; i < belongsTo.size(); i++) {
-                StringSnippet item = snippets.get(belongsTo.get(i));
-                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
-                else { decrypted++; }
-
-                System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
-            }
-
-            for(int i = 0; i < belongsTo.size(); i++) {
-                StringSnippet item = snippets.get(belongsTo.get(i));
-                System.out.println("Item " + belongsTo.get(i) + ", C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
-            }
-
-            //System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
-
-            // compute sum of squares within cluster
-
-            // compute centroid
-            double[] clusterCentroid = new double[255 * 255];
-            for(int i = 0; i < belongsTo.size(); i++) {
-                int index = belongsTo.get(i);
-                HashMap<Pair<Integer, Integer>, Integer> frequencyMap = snippets.get(index).frequencyMap;
-
-                for(Pair<Integer, Integer> key : frequencyMap.keySet()) {
-                    int code = key.getKey() * 255 + key.getValue();
-                    clusterCentroid[code] += frequencyMap.get(key);
-                }
-            }
-
-            // normalize
-            double withinDist = 0;
-            for(int i = 0; i < 255 * 255; i++) {
-                clusterCentroid[i] /= belongsTo.size();
-            }
-
-            for(int i = 0; i < belongsTo.size(); i++) {
-                int index = belongsTo.get(i);
-                double[] vector = snippets.get(index).toVector();
-
-                // compute distance from centroid
-                double dist = 0;
-                for(int j = 0; j < 255 * 255; j++) {
-                    dist += Math.pow(clusterCentroid[j] - vector[j], 2);
-                }
-                withinDist += dist;
-            }
-
-            System.out.println(Math.sqrt(withinDist));
-        }
+//        String[] names = new String[MAX_ITEMS];
+//        for(int i = 0; i < MAX_ITEMS; i++) {
+//            names[i] = "" + i;
+//        }
+//
+//        System.out.println("Clustering...");
+//        HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
+//        int[] membership = hac.partition(9);
+//        for(int cluster = 0; cluster < 9; cluster++) {
+//            ArrayList<Integer> belongsTo = new ArrayList<>();
+//            for(int i = 0; i < membership.length; i++) {
+//                if(membership[i] == cluster) { belongsTo.add(i); }
+//            }
+//            System.out.println("Members in cluster " + cluster + ": " + belongsTo.size());
+//
+//            int encrypted = 0;
+//            int decrypted = 0;
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                StringSnippet item = snippets.get(belongsTo.get(i));
+//                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
+//                else { decrypted++; }
+//
+//                System.out.println("Item " + belongsTo.get(i) + ": " + item.stringStatements);
+//            }
+//
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                StringSnippet item = snippets.get(belongsTo.get(i));
+//                System.out.println("Item " + belongsTo.get(i) + ", C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
+//            }
+//
+//            //System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
+//
+//            // compute sum of squares within cluster
+//
+//            // compute centroid
+//            double[] clusterCentroid = new double[255 * 255];
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                int index = belongsTo.get(i);
+//                HashMap<Pair<Integer, Integer>, Integer> frequencyMap = snippets.get(index).frequencyMap;
+//
+//                for(Pair<Integer, Integer> key : frequencyMap.keySet()) {
+//                    int code = key.getKey() * 255 + key.getValue();
+//                    clusterCentroid[code] += frequencyMap.get(key);
+//                }
+//            }
+//
+//            // normalize
+//            double withinDist = 0;
+//            for(int i = 0; i < 255 * 255; i++) {
+//                clusterCentroid[i] /= belongsTo.size();
+//            }
+//
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                int index = belongsTo.get(i);
+//                double[] vector = snippets.get(index).toVector();
+//
+//                // compute distance from centroid
+//                double dist = 0;
+//                for(int j = 0; j < 255 * 255; j++) {
+//                    dist += Math.pow(clusterCentroid[j] - vector[j], 2);
+//                }
+//                withinDist += dist;
+//            }
+//
+//            System.out.println(Math.sqrt(withinDist));
+//        }
 
 //        double totalDistance = 0;
 //        for(int i = 0; i < MAX_ITEMS; i++) {
