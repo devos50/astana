@@ -4,6 +4,7 @@ import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.*;
 import com.googlecode.d2j.reader.Op;
 import com.googlecode.d2j.smali.Smali;
+import org.bouncycastle.util.Pack;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -52,18 +53,47 @@ public class SmaliFileParser {
 
             if(currentNode instanceof JumpStmtNode) {
                 // we found a jump -> make a decision: follow it or not
-                JumpStmtNode jumpStmtNode = (JumpStmtNode) currentNode;
-                SmaliFileParserState newState = currentState.copy();
 
-                // find the point where we are jumping to
-                int jumpIndex = getIndexForLabel(jumpStmtNode.label, currentState.methodNode);
-                newState.currentStatementIndex = jumpIndex + 1; // we want to jump to the statement after the label
+                // have we already made this decision? If so, do not consider it
+                if(!currentState.jumpDecisions.containsKey(currentNode)) {
+                    JumpStmtNode jumpStmtNode = (JumpStmtNode) currentNode;
+                    SmaliFileParserState newState = currentState.copy();
 
-                // add the decision that we made
-                newState.jumpDecisions.put(jumpStmtNode, true);
+                    // find the point where we are jumping to
+                    int jumpIndex = getIndexForLabel(jumpStmtNode.label, currentState.methodNode);
+                    newState.currentStatementIndex = jumpIndex + 1; // we want to jump to the statement after the label
 
-                // process this state
-                states.addAll(processState(states, newState));
+                    // add the decision that we made
+                    newState.jumpDecisions.put(jumpStmtNode, jumpStmtNode.label);
+
+                    // process this state
+                    System.out.println("BEFORE: " + states);
+                    states.addAll(processState(states, newState));
+                    System.out.println("AFTER: " + states);
+                }
+            }
+
+            if(currentNode instanceof PackedSwitchStmtNode) {
+                PackedSwitchStmtNode packedSwitchStmtNode = (PackedSwitchStmtNode) currentNode;
+                for(DexLabel label : packedSwitchStmtNode.labels) {
+                    if(!currentState.jumpDecisions.containsKey(packedSwitchStmtNode)) {
+                        // we found a jump -> make a decision: follow it or not
+                        SmaliFileParserState newState = currentState.copy();
+
+                        // find the point where we are jumping to
+                        int jumpIndex = getIndexForLabel(label, currentState.methodNode);
+                        newState.currentStatementIndex = jumpIndex + 1; // we want to jump to the statement after the label
+
+                        // add the decision that we made
+                        newState.jumpDecisions.put(packedSwitchStmtNode, label);
+
+                        // process this state
+                        System.out.println("BEFORE: " + states);
+                        states.addAll(processState(states, newState));
+                        System.out.println("AFTER: " + states);
+                    }
+                }
+                break; // TODO do we really have to follow one of the labels? Or can we continue (default switch case)?
             }
 
             // if we reach return-void (without having reached a location where a string is made), bail out
@@ -112,7 +142,7 @@ public class SmaliFileParser {
                     currentState.statements.add(moveStmtNode);
                     currentState.stringResultRegister = 1;
                     currentState.foundDecryptedString = true;
-                    return null;
+                    break;
                 }
             }
 
@@ -147,6 +177,7 @@ public class SmaliFileParser {
 
         if(best != null) {
             snippet.statements = best.statements;
+            snippet.stringResultRegister = best.stringResultRegister;
             snippet.finalize();
             return snippet;
         }

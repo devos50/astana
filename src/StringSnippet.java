@@ -87,6 +87,7 @@ public class StringSnippet {
             }
         }
 
+        System.out.println(visited);
         statements.removeAll(toRemove);
         System.out.println("Pruned " + toRemove.size() + " statements!");
     }

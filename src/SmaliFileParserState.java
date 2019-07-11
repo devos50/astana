@@ -1,3 +1,4 @@
+import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
@@ -13,7 +14,7 @@ public class SmaliFileParserState {
     public Set<Integer> definedVariables;
     public ConstStmtNode stringInitNode;
     public boolean foundDecryptedString = false;
-    public Map<DexStmtNode, Boolean> jumpDecisions = new HashMap<>();
+    public Map<DexStmtNode, DexLabel> jumpDecisions = new HashMap<>();
     public List<DexStmtNode> statements;
     public int stringResultRegister = 0;
 

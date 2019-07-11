@@ -54,7 +54,8 @@ public class RegisterDependencyGraph {
             if(stmtNode instanceof ConstStmtNode) {
                 // definition of a constant -> set new active register
                 ConstStmtNode constStmtNode = (ConstStmtNode) stmtNode;
-                makeNewRegister(constStmtNode.a);
+                RegisterDependencyNode newRegister = makeNewRegister(constStmtNode.a);
+                statementToRegister[statementIndex] = newRegister;
             }
             else if(stmtNode instanceof MethodStmtNode) {
                 // ignore for now, instead, process the move-result statement instead
