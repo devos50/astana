@@ -49,7 +49,6 @@ public class StringSnippet {
     private void prune(RegisterDependencyGraph graph) {
         // prune nodes that do not "contribute" towards the end result.
         // first, we do a BFS, starting from the last node, and mark visited nodes.
-        // TODO remove unvisited nodes
         // TODO we assume the last statement is a move-result(-object)
 
         DexStmtNode lastStmtNode = statements.get(statements.size() - 1);

@@ -21,101 +21,68 @@ public class SmaliFileParser {
         this.smaliFile = smaliFile;
     }
 
-    public StringSnippet processString(DexMethodNode methodNode, int statementIndex) {
-        ConstStmtNode stringInitNode = (ConstStmtNode) methodNode.codeNode.stmts.get(statementIndex);
-        StringSnippet snippet = new StringSnippet(this.smaliFile, methodNode, stringInitNode);
-        List<DexLabel> sectionsToInclude = new ArrayList<>();
-        int stringInitStatementIndex = statementIndex;
-        int currentStatementIndex = statementIndex;
-        List<DexLabel> jumpedTo = new ArrayList<>();
-        Set<Integer> definedVariables = new HashSet<>();
-
-        while(true) {
-            if(currentStatementIndex >= methodNode.codeNode.stmts.size()) {
-                break;
+    public int getIndexForLabel(DexLabel label, DexMethodNode methodNode) {
+        for(int index = 0; index < methodNode.codeNode.stmts.size(); index++) {
+            DexStmtNode loopNode = methodNode.codeNode.stmts.get(index);
+            if(loopNode instanceof DexLabelStmtNode) {
+                DexLabelStmtNode labelNode = (DexLabelStmtNode) loopNode;
+                if(labelNode.label == label) {
+                    return index;
+                }
             }
+        }
+        return -1;
+    }
 
-            DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentStatementIndex);
-
+    public ArrayList<SmaliFileParserState> processState(ArrayList<SmaliFileParserState> states, SmaliFileParserState currentState) {
+        System.out.println("Going to process state!");
+        DexStmtNode currentNode = currentState.methodNode.codeNode.stmts.get(currentState.currentStatementIndex);
+        while(currentNode != null) {
+            System.out.println("Processing statement: " + currentNode.op);
             // if we are returning the string, bail out
             // TODO we assume registers are not edited in-between! We need to better track the string...
             if(currentNode.op == Op.RETURN_OBJECT) {
                 Stmt1RNode castNode = (Stmt1RNode) currentNode;
-                if(castNode.a == stringInitNode.a) {
-                    return null;
+                if(castNode.a == currentState.stringInitNode.a) {
+                    break;
                 }
             }
 
-            if(currentNode.op == Op.PACKED_SWITCH) {
-                PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) currentNode;
+            // TODO process GOTO statements correctly!
 
-                if(!definedVariables.contains(switchNode.a)) {
-                    // find it
-                    for(int currentBackIndex = stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
-                        DexStmtNode currentStmtNode = methodNode.codeNode.stmts.get(currentBackIndex);
-                        if(currentStmtNode instanceof ConstStmtNode) {
-                            ConstStmtNode currentConstStmtNode = (ConstStmtNode) currentStmtNode;
-                            if(currentConstStmtNode.a == switchNode.a) {
-                                snippet.statements.add(1, currentStmtNode); // add it after the const-string definition
-                                break;
-                            }
-                        }
-                    }
-                }
+            if(currentNode instanceof JumpStmtNode) {
+                // we found a jump -> make a decision: follow it or not
+                JumpStmtNode jumpStmtNode = (JumpStmtNode) currentNode;
+                SmaliFileParserState newState = currentState.copy();
 
-                for(DexLabel label : switchNode.labels) { sectionsToInclude.add(label); }
+                // find the point where we are jumping to
+                int jumpIndex = getIndexForLabel(jumpStmtNode.label, currentState.methodNode);
+                newState.currentStatementIndex = jumpIndex + 1; // we want to jump to the statement after the label
+
+                // add the decision that we made
+                newState.jumpDecisions.put(jumpStmtNode, true);
+
+                // process this state
+                states.addAll(processState(states, newState));
             }
-
-//            if(currentNode.op == Op.GOTO) {
-//                JumpStmtNode jumpNode = (JumpStmtNode) currentNode;
-//
-//                // we should find the label in the method
-//                int jumpIndex = -1;
-//                DexLabel jumpLabel = null;
-//                for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-//                    DexStmtNode loopStmtNode = methodNode.codeNode.stmts.get(i);
-//                    if(loopStmtNode instanceof DexLabelStmtNode) {
-//                        DexLabelStmtNode labelLoopStmtNode = (DexLabelStmtNode) loopStmtNode;
-//                        if(labelLoopStmtNode.label == jumpNode.label) {
-//                            jumpIndex = i;
-//                            jumpLabel = labelLoopStmtNode.label;
-//                            break;
-//                        }
-//                    }
-//                }
-//
-//                if(jumpIndex != -1 && jumpedTo.contains(jumpLabel)) {
-//                    // we already jumped to here, ignore it
-//                    currentStatementIndex++;
-//                    continue;
-//                }
-//                else if(jumpIndex != -1) {
-//                    currentStatementIndex = jumpIndex;
-//                    jumpedTo.add(jumpLabel);
-//                    continue;
-//                }
-//                else {
-//                    snippet.statements.add(currentNode);
-//                    break;
-//                }
-//            }
 
             // if we reach return-void (without having reached a location where a string is made), bail out
             if(currentNode.op == Op.RETURN_VOID || currentNode.op == Op.RETURN_OBJECT || currentNode.op == Op.THROW) {
-                return null;
+                break;
             }
 
-            snippet.statements.add(currentNode);
+            currentState.statements.add(currentNode);
 
             if(currentNode instanceof ConstStmtNode) {
                 ConstStmtNode constStmtNode = (ConstStmtNode) currentNode;
-                definedVariables.add(constStmtNode.a);
+                currentState.definedVariables.add(constStmtNode.a);
             }
 
             if(currentNode.op == Op.INVOKE_DIRECT) {
                 MethodStmtNode mnn = (MethodStmtNode) currentNode;
                 if(mnn.method.getName().equals("<init>") && mnn.method.getOwner().equals("Ljava/lang/String;")) {
-                    snippet.stringResultRegister = mnn.args[0];
+                    currentState.stringResultRegister = mnn.args[0];
+                    currentState.foundDecryptedString = true;
                     break;
                 }
             }
@@ -125,14 +92,14 @@ public class SmaliFileParser {
                     // we found a static invocation that returns a string. Find the variables that are not defined yet and look for them
                     // TODO: assume this variable is set with a const statement (it could ofcourse also be a return value of a function)
                     for(int arg : mnn.args) {
-                        if(!definedVariables.contains(arg)) {
+                        if(!currentState.definedVariables.contains(arg)) {
                             // look for this variable
-                            for(int currentBackIndex = stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
-                                DexStmtNode currentStmtNode = methodNode.codeNode.stmts.get(currentBackIndex);
+                            for(int currentBackIndex = currentState.stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
+                                DexStmtNode currentStmtNode = currentState.methodNode.codeNode.stmts.get(currentBackIndex);
                                 if(currentStmtNode instanceof ConstStmtNode) {
                                     ConstStmtNode currentConstStmtNode = (ConstStmtNode) currentStmtNode;
                                     if(currentConstStmtNode.a == arg) {
-                                        snippet.statements.add(1, currentStmtNode); // add it after the const-string definition
+                                        currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
                                         break;
                                     }
                                 }
@@ -142,30 +109,48 @@ public class SmaliFileParser {
 
                     // we want to move this result to a register
                     Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
-                    snippet.statements.add(moveStmtNode);
-                    snippet.stringResultRegister = 1;
-                    break;
+                    currentState.statements.add(moveStmtNode);
+                    currentState.stringResultRegister = 1;
+                    currentState.foundDecryptedString = true;
+                    return null;
                 }
             }
 
-            currentStatementIndex += 1;
+            currentNode = currentState.advanceStatement();
         }
 
-        if(snippet.statements.size() <= 2) {
-            return null;
-        }
+        states.add(currentState);
+        return states;
+    }
 
-        // we might still have to include a few sections (e.g., when there is a switch)
-        for(DexLabel includeLabel : sectionsToInclude) {
-            for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+    public StringSnippet processString(DexMethodNode methodNode, int statementIndex) {
+        ConstStmtNode stringInitNode = (ConstStmtNode) methodNode.codeNode.stmts.get(statementIndex);
+        StringSnippet snippet = new StringSnippet(this.smaliFile, methodNode, stringInitNode);
+        SmaliFileParserState startState = new SmaliFileParserState(snippet, methodNode, statementIndex);
+        ArrayList<SmaliFileParserState> states = processState(new ArrayList<>(), startState);
 
+        // TODO we take the first eligible state, should probably be smarter here
+        SmaliFileParserState best = null;
+        for(SmaliFileParserState state : states) {
+            System.out.println("FOUND DECRYPTED? " + state.foundDecryptedString);
+            System.out.println(state.statements);
+            if(state.statements.size() <= 2) {
+                continue;
+            }
+            if(state.foundDecryptedString) {
+                best = state;
+                break;
             }
         }
 
-        System.out.println(snippet.statements);
+        System.out.println(states);
 
-        snippet.finalize();
-        return snippet;
+        if(best != null) {
+            snippet.statements = best.statements;
+            snippet.finalize();
+            return snippet;
+        }
+        return null;
     }
 
     public void process() throws FileNotFoundException {
@@ -188,7 +173,7 @@ public class SmaliFileParser {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                    if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("n1A=")) {
+                    if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("ASGSAz")) {
                         StringSnippet snippet = this.processString(methodNode, stmtIndex);
                         if(snippet != null) {
                             this.snippets.add(snippet);
