@@ -37,8 +37,13 @@ public class SmaliFileParser {
     }
 
     public ArrayList<SmaliFileParserState> processState(ArrayList<SmaliFileParserState> states, SmaliFileParserState currentState, int level) {
-//        System.out.println("Level: " + level);
-//        System.out.println("jumps: " + currentState.jumps.size());
+        if(level == 5) {
+            // don't recurse too deep
+            return states;
+        }
+
+        //System.out.println("Level: " + level);
+        //System.out.println("jumps: " + currentState.jumps.size());
         DexStmtNode currentNode = currentState.methodNode.codeNode.stmts.get(currentState.currentStatementIndex);
         while(currentNode != null) {
 //            System.out.println("Processing statement: " + currentNode.op);
@@ -139,33 +144,44 @@ public class SmaliFileParser {
                     boolean resolvedVariables = true;
 
                     // TODO: assume this variable is set with a const statement (it could ofcourse also be a return value of a function)
-                    for(int argIndex = 0; argIndex < mnn.args.length; argIndex++) {
-                        int arg = mnn.args[argIndex];
-                        String argType = mnn.method.getParameterTypes()[argIndex];
-                        if(!currentState.definedVariables.contains(arg)) {
-                            // look for this variable
-                            boolean found = false;
-                            for(int currentBackIndex = currentState.stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
-                                DexStmtNode currentStmtNode = currentState.methodNode.codeNode.stmts.get(currentBackIndex);
-                                if(currentStmtNode instanceof ConstStmtNode) {
-                                    ConstStmtNode currentConstStmtNode = (ConstStmtNode) currentStmtNode;
-                                    if(currentConstStmtNode.a == arg) {
-                                        if(argType.equals("Ljava/lang/String;") && (currentConstStmtNode.op == Op.CONST_STRING || currentConstStmtNode.op == Op.CONST_STRING_JUMBO)) {
-                                            currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
-                                            found = true;
-                                            break;
-                                        }
-                                        else if(argType.equals("C") && (currentConstStmtNode.op == Op.CONST_4 || currentConstStmtNode.op == Op.CONST_16)) {
-                                            currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
-                                            found = true;
-                                            break;
+                    if(mnn.args.length == mnn.method.getParameterTypes().length) {
+                        Set<Integer> missingVariables = new HashSet<>();
+                        Map<Integer, Integer> variableIndex = new HashMap<>();
+                        for(int argIndex = 0; argIndex < mnn.args.length; argIndex++) {
+                            int arg = mnn.args[argIndex];
+                            if(!currentState.definedVariables.contains(arg)) {
+                                missingVariables.add(arg);
+                                variableIndex.put(arg, argIndex);
+                            }
+                        }
+
+                        for(int arg : missingVariables) {
+                            String argType = mnn.method.getParameterTypes()[variableIndex.get(arg)];
+                            if(!currentState.definedVariables.contains(arg)) {
+                                // look for this variable
+                                boolean found = false;
+                                for(int currentBackIndex = currentState.stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
+                                    DexStmtNode currentStmtNode = currentState.methodNode.codeNode.stmts.get(currentBackIndex);
+                                    if(currentStmtNode instanceof ConstStmtNode) {
+                                        ConstStmtNode currentConstStmtNode = (ConstStmtNode) currentStmtNode;
+                                        if(currentConstStmtNode.a == arg) {
+                                            if(argType.equals("Ljava/lang/String;") && (currentConstStmtNode.op == Op.CONST_STRING || currentConstStmtNode.op == Op.CONST_STRING_JUMBO)) {
+                                                currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
+                                                found = true;
+                                                break;
+                                            }
+                                            else if(argType.equals("C") && (currentConstStmtNode.op == Op.CONST_4 || currentConstStmtNode.op == Op.CONST_16)) {
+                                                currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
+                                                found = true;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            if(!found) {
-                                resolvedVariables = false;
+                                if(!found) {
+                                    resolvedVariables = false;
+                                }
                             }
                         }
                     }
@@ -219,7 +235,7 @@ public class SmaliFileParser {
     }
 
     public void process() throws FileNotFoundException {
-        System.out.println("Processing file: " + smaliFile.getPath());
+//        System.out.println("Processing file: " + smaliFile.getPath());
         InputStream input = new FileInputStream(smaliFile);
         try {
             this.rootNode = Smali.smaliFile2Node("test.smali", input);
@@ -239,10 +255,9 @@ public class SmaliFileParser {
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
                     if(stringInitNode.value.toString().length() > 0) {
-                        System.out.println("Processing str: " + stringInitNode.value.toString());
+//                        System.out.println("Processing str: " + stringInitNode.value.toString());
                         StringSnippet snippet = this.processString(methodNode, stmtIndex);
                         if(snippet != null) {
-                            System.out.println("Adding snippet for string: " + stringInitNode.value.toString());
                             this.snippets.add(snippet);
                         }
                         //System.out.println("Snippets: " + snippets.size());

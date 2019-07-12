@@ -1,7 +1,7 @@
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
+import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
-import com.googlecode.d2j.node.insn.Stmt1RNode;
 import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
 
@@ -52,12 +52,11 @@ public class StringSnippet {
         // TODO we assume the last statement is a move-result(-object)
 
         DexStmtNode lastStmtNode = statements.get(statements.size() - 1);
-        if(lastStmtNode.op != Op.MOVE_RESULT_OBJECT) {
-            throw new RuntimeException("Pruning: last node not move-result-object!");
+        if(lastStmtNode.op != Op.MOVE_RESULT_OBJECT && lastStmtNode.op != Op.INVOKE_DIRECT) {
+            throw new RuntimeException("Pruning: last node not move-result-object or invoke-direct!");
         }
 
-        Stmt1RNode moveStmtNode = (Stmt1RNode) lastStmtNode;
-        RegisterDependencyNode rootNode = graph.activeRegister.get(moveStmtNode.a);
+        RegisterDependencyNode rootNode = graph.activeRegister.get(stringResultRegister);
 
         List<RegisterDependencyNode> visited = new ArrayList<>();
         LinkedList<RegisterDependencyNode> queue = new LinkedList<>();
@@ -111,20 +110,23 @@ public class StringSnippet {
             return false;
         }
 
-        for(int i = 0; i < statements.size(); i++) {
-            DexStmtNode node = statements.get(i);
-            if(node.op != null) {
-                stringStatements.add(node.op.toString());
+        List<DexStmtNode> reducedStatements = new ArrayList<>();
+        for(DexStmtNode stmtNode : statements) {
+            if(!(stmtNode instanceof DexLabelStmtNode)) {
+                reducedStatements.add(stmtNode);
             }
-            if(i != statements.size() - 1) {
-                DexStmtNode nextNode = statements.get(i + 1);
-                if(node.op != null && nextNode.op != null) {
-                    Pair<Integer, Integer> pair = new Pair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
-                    if(!frequencyMap.containsKey(pair)) {
-                        frequencyMap.put(pair, 0);
-                    }
-                    frequencyMap.put(pair, frequencyMap.get(pair) + 1);
+        }
+
+        for(int i = 0; i < reducedStatements.size(); i++) {
+            DexStmtNode node = reducedStatements.get(i);
+            stringStatements.add(node.op.toString());
+            if(i != reducedStatements.size() - 1) {
+                DexStmtNode nextNode = reducedStatements.get(i + 1);
+                Pair<Integer, Integer> pair = new Pair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
+                if(!frequencyMap.containsKey(pair)) {
+                    frequencyMap.put(pair, 0);
                 }
+                frequencyMap.put(pair, frequencyMap.get(pair) + 1);
 
             }
         }
