@@ -54,20 +54,21 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-//        File analyzePath = new File("data/lloyds-smali");
-//        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
-//        System.out.println("Number of smali files: " + files.size());
-//
-//        for(File smaliFile : files) {
-//            //System.out.println("Processing file " + smaliFile.getPath());
-//            SmaliFileParser parser = new SmaliFileParser(smaliFile);
-//            parser.process();
-//            snippets.addAll(parser.snippets);
-//        }
+        File analyzePath = new File("data/lloyds-smali");
+        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
+        System.out.println("Number of smali files: " + files.size());
 
-        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/dsssdd.smali"));
-        parser.process();
-        snippets.addAll(parser.snippets);
+        for(File smaliFile : files) {
+            //System.out.println("Processing file " + smaliFile.getPath());
+            SmaliFileParser parser = new SmaliFileParser(smaliFile);
+            parser.process();
+            snippets.addAll(parser.snippets);
+            System.out.println("Snippets: " + snippets.size());
+        }
+
+//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/androidx/core/app/NotificationCompat.smali"));
+//        parser.process();
+//        snippets.addAll(parser.snippets);
 
         for(StringSnippet snippet : snippets) {
             StringDecryptor.decrypt(snippet);

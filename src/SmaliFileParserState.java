@@ -1,7 +1,10 @@
 import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
+import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
+import com.googlecode.d2j.node.insn.JumpStmtNode;
+import com.googlecode.d2j.reader.Op;
 
 import java.util.*;
 
@@ -14,7 +17,7 @@ public class SmaliFileParserState {
     public Set<Integer> definedVariables;
     public ConstStmtNode stringInitNode;
     public boolean foundDecryptedString = false;
-    public Map<DexStmtNode, DexLabel> jumpDecisions = new HashMap<>();
+    public Set<DexLabel> jumps = new HashSet<>();
     public List<DexStmtNode> statements;
     public int stringResultRegister = 0;
 
@@ -29,9 +32,26 @@ public class SmaliFileParserState {
     }
 
     public DexStmtNode advanceStatement() {
-        this.currentStatementIndex++;
-        if(this.currentStatementIndex < this.methodNode.codeNode.stmts.size()) {
-            return this.methodNode.codeNode.stmts.get(this.currentStatementIndex);
+        DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentStatementIndex);
+        if(currentNode.op == Op.GOTO || currentNode.op == Op.GOTO_16 || currentNode.op == Op.GOTO_32) {
+            JumpStmtNode jumpStmtNode = (JumpStmtNode) currentNode;
+            // find where to jump to
+            for(int index = 0; index < methodNode.codeNode.stmts.size(); index++) {
+                DexStmtNode loopNode = methodNode.codeNode.stmts.get(index);
+                if(loopNode instanceof DexLabelStmtNode) {
+                    DexLabelStmtNode loopLabelNode = (DexLabelStmtNode) loopNode;
+                    if(loopLabelNode.label == jumpStmtNode.label) {
+                        this.currentStatementIndex = index;
+                        return this.methodNode.codeNode.stmts.get(this.currentStatementIndex);
+                    }
+                }
+            }
+        }
+        else {
+            this.currentStatementIndex++;
+            if(this.currentStatementIndex < this.methodNode.codeNode.stmts.size()) {
+                return this.methodNode.codeNode.stmts.get(this.currentStatementIndex);
+            }
         }
         return null;
     }
@@ -40,6 +60,7 @@ public class SmaliFileParserState {
         SmaliFileParserState copy = new SmaliFileParserState(this.snippet, this.methodNode, this.stringInitStatementIndex);
         copy.definedVariables.addAll(definedVariables);
         copy.statements.addAll(statements);
+        copy.jumps.addAll(jumps);
         return copy;
     }
 }

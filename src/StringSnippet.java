@@ -14,7 +14,7 @@ import java.util.List;
 public class StringSnippet {
     public final File file;
     public DexMethodNode methodNode;
-    public ConstStmtNode stringInitMethod;
+    public ConstStmtNode stringInitNode;
     public List<DexStmtNode> statements;
     public ArrayList<String> stringStatements = new ArrayList<>();
     public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
@@ -24,11 +24,11 @@ public class StringSnippet {
         this.file = file;
         this.statements = new ArrayList<>();
         this.methodNode = methodNode;
-        this.stringInitMethod = stringInitNode;
+        this.stringInitNode = stringInitNode;
     }
 
     public String getString() {
-        return this.stringInitMethod.value.toString();
+        return this.stringInitNode.value.toString();
     }
 
     public double[] toVector() {
@@ -46,7 +46,7 @@ public class StringSnippet {
         return opcode;
     }
 
-    private void prune(RegisterDependencyGraph graph) {
+    private boolean prune(RegisterDependencyGraph graph) {
         // prune nodes that do not "contribute" towards the end result.
         // first, we do a BFS, starting from the last node, and mark visited nodes.
         // TODO we assume the last statement is a move-result(-object)
@@ -67,12 +67,25 @@ public class StringSnippet {
         while(!queue.isEmpty()) {
             RegisterDependencyNode currentNode = queue.remove();
             List<RegisterDependencyNode> adjacent = graph.adjacency.get(currentNode);
+
+            if(adjacent == null) {
+                // it seems we are missing variables
+                // TODO: assume that the string is not encrypted!
+                return false;
+            }
+
             for(RegisterDependencyNode adjacentNode : adjacent) {
                 if(!visited.contains(adjacentNode)) {
                     visited.add(adjacentNode);
                     queue.add(adjacentNode);
                 }
             }
+        }
+
+        // check whether the original string declaration is visited. If not, this string is probably not encrypted
+        RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
+        if(!visited.contains(stringNode)) {
+            return false;
         }
 
         ArrayList<DexStmtNode> toRemove = new ArrayList<>();
@@ -87,15 +100,16 @@ public class StringSnippet {
             }
         }
 
-        System.out.println(visited);
         statements.removeAll(toRemove);
-        System.out.println("Pruned " + toRemove.size() + " statements!");
+        return true;
     }
 
-    public void finalize() {
+    public boolean finalizeSnippet() {
         RegisterDependencyGraph graph = new RegisterDependencyGraph(this);
         graph.build();
-        prune(graph);
+        if(!prune(graph)) {
+            return false;
+        }
 
         for(int i = 0; i < statements.size(); i++) {
             DexStmtNode node = statements.get(i);
@@ -114,5 +128,6 @@ public class StringSnippet {
 
             }
         }
+        return true;
     }
 }

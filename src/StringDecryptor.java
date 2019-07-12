@@ -67,7 +67,8 @@ public class StringDecryptor {
 
         // run the jar
         Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/lloyds_original.jar:temp/isolated.jar:temp Isolated");
-        String finalString = null;
+        String line = null;
+        String finalString = "";
         try {
             int result = p.waitFor();
             System.out.println("Original string: " + snippet.getString());
@@ -75,18 +76,21 @@ public class StringDecryptor {
             System.out.println();
             System.out.println("Result:");
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            while ((finalString = reader.readLine()) != null) {
-                System.out.println(finalString);
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+                finalString += line;
             }
 
-            String line = null;
+            if(finalString.length() == 0) { System.exit(1); }
+
+            line = null;
             reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
             while ((line = reader.readLine()) != null) {
                 System.out.println(line);
             }
 
             if(result != 0) {
-                System.out.println("FAILED");
+                System.exit(1);
             }
 
         } catch (InterruptedException e) {
