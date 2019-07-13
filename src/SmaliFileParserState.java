@@ -14,7 +14,6 @@ public class SmaliFileParserState {
     public final StringSnippet snippet;
     public int stringInitStatementIndex;
     public int currentStatementIndex;
-    public Set<Integer> definedVariables;
     public ConstStmtNode stringInitNode;
     public boolean foundDecryptedString = false;
     public Set<DexLabel> jumps = new HashSet<>();
@@ -26,7 +25,6 @@ public class SmaliFileParserState {
         this.currentStatementIndex = stringInitStatementIndex;
         this.methodNode = methodNode;
         this.snippet = snippet;
-        this.definedVariables = new HashSet<>();
         this.stringInitNode = (ConstStmtNode) methodNode.codeNode.stmts.get(stringInitStatementIndex);
         this.statements = new ArrayList<>();
     }
@@ -58,7 +56,6 @@ public class SmaliFileParserState {
 
     public SmaliFileParserState copy() {
         SmaliFileParserState copy = new SmaliFileParserState(this.snippet, this.methodNode, this.stringInitStatementIndex);
-        copy.definedVariables.addAll(definedVariables);
         copy.statements.addAll(statements);
         copy.jumps.addAll(jumps);
         return copy;

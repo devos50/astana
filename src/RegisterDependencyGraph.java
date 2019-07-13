@@ -105,7 +105,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, getActiveRegister(castNode.c));
                 statementToRegister[statementIndex] = newRegister;
             }
-            else if(stmtNode.op == Op.INT_TO_LONG || stmtNode.op == Op.INT_TO_DOUBLE || stmtNode.op == Op.LONG_TO_DOUBLE || stmtNode.op == Op.DOUBLE_TO_INT || stmtNode.op == Op.INT_TO_FLOAT || stmtNode.op == Op.INT_TO_CHAR) {
+            else if(stmtNode.op == Op.INT_TO_LONG || stmtNode.op == Op.INT_TO_DOUBLE || stmtNode.op == Op.LONG_TO_DOUBLE || stmtNode.op == Op.DOUBLE_TO_INT || stmtNode.op == Op.INT_TO_FLOAT || stmtNode.op == Op.INT_TO_CHAR || stmtNode.op == Op.INT_TO_SHORT) {
                 Stmt2RNode castNode = (Stmt2RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.a), getActiveRegister(castNode.b));
                 statementToRegister[statementIndex] = getActiveRegister(castNode.a);
@@ -158,14 +158,14 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, getActiveRegister(castNode.b));
                 statementToRegister[statementIndex] = newRegister;
             }
-            else if(stmtNode.op == Op.SUB_INT || stmtNode.op == Op.DIV_DOUBLE || stmtNode.op == Op.MUL_INT || stmtNode.op == Op.SUB_LONG || stmtNode.op == Op.MUL_DOUBLE || stmtNode.op == Op.ADD_INT) {
+            else if(stmtNode.op == Op.SUB_INT || stmtNode.op == Op.DIV_DOUBLE || stmtNode.op == Op.MUL_INT || stmtNode.op == Op.SUB_LONG || stmtNode.op == Op.MUL_DOUBLE || stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT) {
                 Stmt3RNode castStmtNode = (Stmt3RNode) stmtNode;
                 // TODO new register!!!!!
                 makeDependency(getActiveRegister(castStmtNode.a), getActiveRegister(castStmtNode.b));
                 makeDependency(getActiveRegister(castStmtNode.a), getActiveRegister(castStmtNode.c));
                 statementToRegister[statementIndex] = getActiveRegister(castStmtNode.a);
             }
-            else if(stmtNode.op == Op.ADD_INT_2ADDR || stmtNode.op == Op.MUL_INT_2ADDR || stmtNode.op == Op.REM_INT_2ADDR || stmtNode.op == Op.SHL_INT_2ADDR || stmtNode.op == Op.AND_INT_2ADDR || stmtNode.op == Op.SUB_LONG_2ADDR || stmtNode.op == Op.ADD_LONG_2ADDR || stmtNode.op == Op.DIV_DOUBLE_2ADDR || stmtNode.op == Op.DIV_FLOAT_2ADDR || stmtNode.op == Op.DIV_INT_2ADDR || stmtNode.op == Op.SHR_INT_2ADDR || stmtNode.op == Op.OR_INT_2ADDR) {
+            else if(stmtNode.op == Op.ADD_INT_2ADDR || stmtNode.op == Op.MUL_INT_2ADDR || stmtNode.op == Op.REM_INT_2ADDR || stmtNode.op == Op.SHL_INT_2ADDR || stmtNode.op == Op.AND_INT_2ADDR || stmtNode.op == Op.SUB_LONG_2ADDR || stmtNode.op == Op.ADD_LONG_2ADDR || stmtNode.op == Op.DIV_DOUBLE_2ADDR || stmtNode.op == Op.DIV_FLOAT_2ADDR || stmtNode.op == Op.DIV_INT_2ADDR || stmtNode.op == Op.SHR_INT_2ADDR || stmtNode.op == Op.OR_INT_2ADDR || stmtNode.op == Op.XOR_INT_2ADDR) {
                 Stmt2RNode castStmtNode = (Stmt2RNode) stmtNode;
                 makeDependency(getActiveRegister(castStmtNode.a), getActiveRegister(castStmtNode.b));
                 statementToRegister[statementIndex] = getActiveRegister(castStmtNode.a);

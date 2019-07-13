@@ -84,6 +84,8 @@ public class StringSnippet {
         // check whether the original string declaration is visited. If not, this string is probably not encrypted
         RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
         if(!visited.contains(stringNode)) {
+            System.out.println("NO PATH");
+            System.out.println(graph.adjacency);
             return false;
         }
 

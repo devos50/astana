@@ -46,7 +46,7 @@ public class SmaliFileParser {
         //System.out.println("jumps: " + currentState.jumps.size());
         DexStmtNode currentNode = currentState.methodNode.codeNode.stmts.get(currentState.currentStatementIndex);
         while(currentNode != null) {
-//            System.out.println("Processing statement: " + currentNode.op);
+            System.out.println("Processing statement: " + currentNode.op);
 //            if(currentNode instanceof ConstStmtNode) {
 //                ConstStmtNode cast = (ConstStmtNode) currentNode;
 //                System.out.println(cast.value);
@@ -61,8 +61,9 @@ public class SmaliFileParser {
             }
 
             if(currentNode.op == Op.GOTO || currentNode.op == Op.GOTO_16 || currentNode.op == Op.GOTO_32) {
-                // if we already did the jump, bail out
                 JumpStmtNode jumpStmtNode = (JumpStmtNode) currentNode;
+
+                // if we already did the jump, bail out
                 if(currentState.jumps.contains(jumpStmtNode.label)) {
                     return states;
                 }
@@ -123,11 +124,6 @@ public class SmaliFileParser {
 
             currentState.statements.add(currentNode);
 
-            if(currentNode instanceof ConstStmtNode) {
-                ConstStmtNode constStmtNode = (ConstStmtNode) currentNode;
-                currentState.definedVariables.add(constStmtNode.a);
-            }
-
             if(currentNode.op == Op.INVOKE_DIRECT) {
                 MethodStmtNode mnn = (MethodStmtNode) currentNode;
                 if(mnn.method.getName().equals("<init>") && mnn.method.getOwner().equals("Ljava/lang/String;")) {
@@ -139,58 +135,6 @@ public class SmaliFileParser {
             else if(currentNode.op == Op.INVOKE_STATIC) {
                 MethodStmtNode mnn = (MethodStmtNode) currentNode;
                 if(mnn.method.getReturnType().equals("Ljava/lang/String;") && mnn.args.length > 0) {
-                    // we found a static invocation that returns a string. Find the variables that are not defined yet and look for them
-
-                    boolean resolvedVariables = true;
-
-                    // TODO: assume this variable is set with a const statement (it could ofcourse also be a return value of a function)
-                    if(mnn.args.length == mnn.method.getParameterTypes().length) {
-                        Set<Integer> missingVariables = new HashSet<>();
-                        Map<Integer, Integer> variableIndex = new HashMap<>();
-                        for(int argIndex = 0; argIndex < mnn.args.length; argIndex++) {
-                            int arg = mnn.args[argIndex];
-                            if(!currentState.definedVariables.contains(arg)) {
-                                missingVariables.add(arg);
-                                variableIndex.put(arg, argIndex);
-                            }
-                        }
-
-                        for(int arg : missingVariables) {
-                            String argType = mnn.method.getParameterTypes()[variableIndex.get(arg)];
-                            if(!currentState.definedVariables.contains(arg)) {
-                                // look for this variable
-                                boolean found = false;
-                                for(int currentBackIndex = currentState.stringInitStatementIndex - 1; currentBackIndex >= 0; currentBackIndex--) {
-                                    DexStmtNode currentStmtNode = currentState.methodNode.codeNode.stmts.get(currentBackIndex);
-                                    if(currentStmtNode instanceof ConstStmtNode) {
-                                        ConstStmtNode currentConstStmtNode = (ConstStmtNode) currentStmtNode;
-                                        if(currentConstStmtNode.a == arg) {
-                                            if(argType.equals("Ljava/lang/String;") && (currentConstStmtNode.op == Op.CONST_STRING || currentConstStmtNode.op == Op.CONST_STRING_JUMBO)) {
-                                                currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
-                                                found = true;
-                                                break;
-                                            }
-                                            else if(argType.equals("C") && (currentConstStmtNode.op == Op.CONST_4 || currentConstStmtNode.op == Op.CONST_16)) {
-                                                currentState.statements.add(1, currentStmtNode); // add it after the const-string definition
-                                                found = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if(!found) {
-                                    resolvedVariables = false;
-                                }
-                            }
-                        }
-                    }
-
-                    if(!resolvedVariables) {
-                        // we could not resolve all variables, this string is probably not encrypted
-                        return states;
-                    }
-
                     // we want to move this result to a register
                     Stmt1RNode moveStmtNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
                     currentState.statements.add(moveStmtNode);
@@ -254,8 +198,8 @@ public class SmaliFileParser {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                    if(stringInitNode.value.toString().length() > 0) {
-//                        System.out.println("Processing str: " + stringInitNode.value.toString());
+                    if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("Z\\\\T")) {
+                        System.out.println("Processing str: " + stringInitNode.value.toString());
                         StringSnippet snippet = this.processString(methodNode, stmtIndex);
                         if(snippet != null) {
                             this.snippets.add(snippet);
