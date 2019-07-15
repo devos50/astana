@@ -1,7 +1,6 @@
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.reader.Op;
-import sun.jvm.hotspot.asm.Register;
 
 import java.util.*;
 
@@ -11,6 +10,7 @@ public class MethodExecutionPath {
     public int stringInitIndex;
     public int stringDecryptIndex;
     public int stringResultRegister;
+    public List<MethodSection> sectionsVisited = new ArrayList<>();
     public List<MethodSectionJump> path = new ArrayList<>();
     public RegisterDependencyGraph registerDependencyGraph;
     public boolean[] involvedStatements;
@@ -25,6 +25,7 @@ public class MethodExecutionPath {
 
     public MethodExecutionPath copy() {
         MethodExecutionPath copy = new MethodExecutionPath(this.method, this.stringInitIndex, this.stringDecryptIndex, this.stringResultRegister);
+        copy.sectionsVisited.addAll(this.sectionsVisited);
         copy.path.addAll(this.path);
         return copy;
     }
@@ -69,11 +70,17 @@ public class MethodExecutionPath {
 
         // first, include obvious statements, like the sections we visit in this path
         MethodSection stringInitSection = method.getSectionForStatement(stringInitIndex);
-        this.involvedStatements[stringInitSection.beginIndex - 1] = true; // label declaration
+        if(stringInitSection.sectionLabel.displayName != null && !stringInitSection.sectionLabel.displayName.equals("start")) {
+            this.involvedStatements[stringInitSection.beginIndex - 1] = true; // label declaration
+        }
+
         for(MethodSectionJump jump : path) {
-            int fromSectionLabelStmtIndex = jump.fromSection.beginIndex - 1;
+            if(jump.fromSection.sectionLabel.displayName != null && !jump.fromSection.sectionLabel.displayName.equals("start")) {
+                int fromSectionLabelStmtIndex = jump.fromSection.beginIndex - 1;
+                this.involvedStatements[fromSectionLabelStmtIndex] = true;
+            }
+
             int toSectionLabelStmtIndex = jump.toSection.beginIndex - 1;
-            this.involvedStatements[fromSectionLabelStmtIndex] = true;
             this.involvedStatements[toSectionLabelStmtIndex] = true;
             this.involvedStatements[jump.jumpStmtIndex] = true;
         }

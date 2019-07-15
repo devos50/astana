@@ -66,7 +66,7 @@ public class StringDecryptor {
         new Dex2jarCmd().doMain("temp/isolated.dex", "--force", "-o", "temp/isolated.jar");
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/barclays_original.jar:temp/isolated.jar:temp Isolated");
+        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Downloads/barclays_original.jar:temp/isolated.jar:temp Isolated");
         String line = null;
         String finalString = "";
         try {

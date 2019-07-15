@@ -21,13 +21,14 @@ public class ControlFlowGraph {
         // for each section, determine where we can possibly go
         for(int sectionIndex = 0; sectionIndex < method.sections.size(); sectionIndex++) {
             MethodSection currentSection = method.sections.get(sectionIndex);
-            System.out.println("Section: " + currentSection);
+//            System.out.println("Section: " + currentSection);
             for(int stmtIndex = currentSection.beginIndex; stmtIndex < currentSection.endIndex; stmtIndex++) {
                 DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
 
                 if(stmtNode instanceof JumpStmtNode) {
                     JumpStmtNode jumpStmtNode = (JumpStmtNode) stmtNode;
                     MethodSection jumpSection = method.getSectionForLabel(jumpStmtNode.label);
+                    System.out.println(jumpStmtNode.label);
                     if(jumpSection == null) {
                         throw new RuntimeException("Cannot find section where jump to is made!");
                     }

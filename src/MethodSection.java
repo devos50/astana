@@ -19,7 +19,7 @@ public class MethodSection {
             beginIndex = 0;
         }
 
-        for(int currentIndex = 0; currentIndex < methodNode.codeNode.stmts.size(); currentIndex++) {
+        for(int currentIndex = 1; currentIndex < methodNode.codeNode.stmts.size(); currentIndex++) {
             DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentIndex);
             if(currentNode instanceof DexLabelStmtNode) {
                 if(inSection) {
