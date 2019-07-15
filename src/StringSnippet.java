@@ -13,18 +13,21 @@ import java.util.List;
 
 public class StringSnippet {
     public final File file;
-    public DexMethodNode methodNode;
+    public Method method;
     public ConstStmtNode stringInitNode;
+    public int stringInitIndex;
+    public int stringDecryptedIndex;
     public List<DexStmtNode> statements;
     public ArrayList<String> stringStatements = new ArrayList<>();
     public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
     public int stringResultRegister = 0;
 
-    public StringSnippet(File file, DexMethodNode methodNode, ConstStmtNode stringInitNode) {
+    public StringSnippet(File file, Method method, int stringInitIndex) {
         this.file = file;
         this.statements = new ArrayList<>();
-        this.methodNode = methodNode;
-        this.stringInitNode = stringInitNode;
+        this.method = method;
+        this.stringInitIndex = stringInitIndex;
+        this.stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(stringInitIndex);
     }
 
     public String getString() {
@@ -121,6 +124,7 @@ public class StringSnippet {
 
         for(int i = 0; i < reducedStatements.size(); i++) {
             DexStmtNode node = reducedStatements.get(i);
+            // TODO ignore jump statements!
             stringStatements.add(node.op.toString());
             if(i != reducedStatements.size() - 1) {
                 DexStmtNode nextNode = reducedStatements.get(i + 1);
