@@ -33,11 +33,22 @@ public class Method {
             }
         }
 
-        // determine sections
-        DexLabel beginSectionLabel = new DexLabel();
-        beginSectionLabel.displayName = "start";
-        MethodSection beginSection = new MethodSection(methodNode, beginSectionLabel);
-        sections.add(beginSection);
+        // determine begin section
+        MethodSection beginSection = null;
+        DexStmtNode firstStmtNode = methodNode.codeNode.stmts.get(0);
+        if(firstStmtNode instanceof DexLabelStmtNode) {
+            DexLabelStmtNode labelNode = (DexLabelStmtNode) firstStmtNode;
+            labelNode.label.displayName = "start";
+            beginSection = new MethodSection(methodNode, labelNode.label);
+            sections.add(beginSection);
+        }
+        else {
+            DexLabel beginSectionLabel = new DexLabel();
+            beginSectionLabel.displayName = "start";
+            beginSection = new MethodSection(methodNode, beginSectionLabel);
+            sections.add(beginSection);
+        }
+
 
         for(int currentIndex = beginSection.endIndex; currentIndex < methodNode.codeNode.stmts.size(); currentIndex++) {
             DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentIndex);

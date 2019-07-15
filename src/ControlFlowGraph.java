@@ -28,9 +28,8 @@ public class ControlFlowGraph {
                 if(stmtNode instanceof JumpStmtNode) {
                     JumpStmtNode jumpStmtNode = (JumpStmtNode) stmtNode;
                     MethodSection jumpSection = method.getSectionForLabel(jumpStmtNode.label);
-                    System.out.println(jumpStmtNode.label);
                     if(jumpSection == null) {
-                        throw new RuntimeException("Cannot find section where jump to is made!");
+                        throw new RuntimeException("Cannot find section where jump to is made! (" + jumpStmtNode.label + ")");
                     }
 
                     MethodSectionJump jump = new MethodSectionJump(currentSection, jumpSection, stmtIndex);

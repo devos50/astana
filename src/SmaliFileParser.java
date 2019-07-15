@@ -59,6 +59,7 @@ public class SmaliFileParser {
         boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
         for(MethodExecutionPath path : paths) {
             path.buildRegisterDependencyGraph();
+            System.out.println("Register dependency graph: " + path.registerDependencyGraph.adjacency);
             path.computeInvolvedStatements();
             for(int i = 0; i < path.involvedStatements.length; i++) {
                 involvedStatements[i] = involvedStatements[i] || path.involvedStatements[i];
@@ -155,6 +156,9 @@ public class SmaliFileParser {
 //            if(!methodNode.method.getName().equals("nBp")) {
 //                continue;
 //            }
+            if(methodNode.codeNode.stmts.size() == 0) {
+                continue;
+            }
 
             System.out.println("Processing method: " + methodNode.method.getName());
             Method method = new Method(methodNode);

@@ -63,6 +63,7 @@ public class Main {
             SmaliFileParser parser = new SmaliFileParser(smaliFile);
             parser.process();
             snippets.addAll(parser.snippets);
+            System.out.println("Snippets: " + snippets.size());
         }
 
 //        SmaliFileParser parser = new SmaliFileParser(new File("data/barclays-smali/p/duW.smali"));
