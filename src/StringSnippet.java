@@ -14,14 +14,13 @@ public class StringSnippet {
     public ConstStmtNode stringInitNode;
     public int stringInitIndex;
     public int stringDecryptedIndex;
-    public List<DexStmtNode> statements;
+    public List<DexStmtNode> extractedStatements = new ArrayList<>();
     public ArrayList<String> stringStatements = new ArrayList<>();
     public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
     public int stringResultRegister = 0;
 
     public StringSnippet(File file, Method method, int stringInitIndex) {
         this.file = file;
-        this.statements = new ArrayList<>();
         this.method = method;
         this.stringInitIndex = stringInitIndex;
         this.stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(stringInitIndex);

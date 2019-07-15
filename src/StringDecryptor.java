@@ -24,7 +24,7 @@ public class StringDecryptor {
         Method m = new Method("LIsolated", "main", paramTypes, "V");
         DexMethodNode mn = new DexMethodNode(ACC_PUBLIC | ACC_STATIC, m);
         DexCodeNode cn = new DexCodeNode();
-        cn.stmts = snippet.statements;
+        cn.stmts = snippet.extractedStatements;
         mn.codeNode = cn;
 
         // add the print statement and return-void
@@ -66,12 +66,12 @@ public class StringDecryptor {
         new Dex2jarCmd().doMain("temp/isolated.dex", "--force", "-o", "temp/isolated.jar");
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/lloyds_original.jar:temp/isolated.jar:temp Isolated");
+        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/barclays_original.jar:temp/isolated.jar:temp Isolated");
         String line = null;
         String finalString = "";
         try {
             int result = p.waitFor();
-            System.out.println("Original string: " + snippet.getString());
+            System.out.println("Original string: " + snippet.getString() + " (l: " + snippet.getString().length() + ")");
             System.out.println("Process exit code: " + result);
             System.out.println();
             System.out.println("Result:");
