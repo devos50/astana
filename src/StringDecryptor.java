@@ -5,22 +5,17 @@ import com.googlecode.d2j.dex.writer.DexFileWriter;
 import com.googlecode.d2j.node.DexClassNode;
 import com.googlecode.d2j.node.DexCodeNode;
 import com.googlecode.d2j.node.DexMethodNode;
-import com.googlecode.d2j.node.insn.FieldStmtNode;
-import com.googlecode.d2j.node.insn.MethodStmtNode;
-import com.googlecode.d2j.node.insn.Stmt0RNode;
+import com.googlecode.d2j.node.insn.*;
 import com.googlecode.d2j.reader.BaseDexFileReader;
 import com.googlecode.d2j.reader.MultiDexFileReader;
 import com.googlecode.d2j.reader.Op;
 import com.googlecode.d2j.smali.BaksmaliDumper;
 import com.googlecode.d2j.smali.Smali;
-import com.googlecode.d2j.smali.SmaliCmd;
 import com.googlecode.d2j.visitors.DexFileVisitor;
-import com.googlecode.dex2jar.tools.Dex2jarCmd;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
-import java.nio.file.Path;
 import java.util.ArrayList;
 
 import static com.googlecode.d2j.DexConstants.ACC_PUBLIC;
@@ -37,6 +32,15 @@ public class StringDecryptor {
         cn.stmts = snippet.extractedStatements;
         mn.codeNode = cn;
 
+        // account for buffer overflow
+        DexStmtNode lastStmtNode = cn.stmts.get(cn.stmts.size() - 1);
+        if(lastStmtNode.op == Op.MOVE_RESULT_OBJECT) {
+            Stmt1RNode newMoveNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
+            cn.stmts.remove(cn.stmts.size() - 1);
+            cn.stmts.add(newMoveNode);
+            snippet.stringResultRegister = 1;
+        }
+
         // add the print statement and return-void
         Field f = new Field("Ljava/lang/System;", "out", "Ljava/io/PrintStream;");
         int printReg = (snippet.stringResultRegister == 0) ? 1 : 0;
@@ -51,7 +55,7 @@ public class StringDecryptor {
 
         Stmt0RNode returnVoidStmt = new Stmt0RNode(Op.RETURN_VOID);
         cn.stmts.add(returnVoidStmt);
-        cn.visitRegister(20);
+        cn.visitRegister(30);
 
         // create the class
         DexClassNode classNode = new DexClassNode(ACC_PUBLIC, "LIsolated;", "Ljava/lang/Object;", null);

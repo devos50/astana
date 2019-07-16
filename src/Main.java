@@ -35,7 +35,7 @@ public class Main {
             System.out.println("Snippets: " + snippets.size());
         }
 
-//        SmaliFileParser parser = new SmaliFileParser(new File("data/barclays-smali/com/google/android/gms/internal/ads/zzaii.smali"));
+//        SmaliFileParser parser = new SmaliFileParser(new File("data/barclays-smali/com/barclays/bmb/framework/cloudit/UploadRequestQueue.smali"));
 //        parser.process();
 //        snippets.addAll(parser.snippets);
 //        System.out.println("Snippets: " + snippets.size());

@@ -163,7 +163,7 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("zzm")) {
+//            if(!methodNode.method.getName().equals("onHandleIntent")) {
 //                continue;
 //            }
 
