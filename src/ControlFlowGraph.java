@@ -1,3 +1,5 @@
+import com.googlecode.d2j.DexLabel;
+import com.googlecode.d2j.node.TryCatchNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
 import com.googlecode.d2j.reader.Op;
@@ -9,7 +11,6 @@ public class ControlFlowGraph {
 
     public static ControlFlowGraph build(Method method) {
         // TODO handle switches!
-        // TODO handle try/catch jumps!
 
         ControlFlowGraph graph = new ControlFlowGraph();
 
@@ -50,6 +51,20 @@ public class ControlFlowGraph {
                     if(!graph.adjacency.get(currentSection).contains(jump)) {
                         graph.adjacency.get(currentSection).add(jump);
                     }
+                }
+            }
+        }
+
+        // consider try/catches
+        for(TryCatchNode tryCatchNode : method.methodNode.codeNode.tryStmts) {
+            MethodSection startSection = method.getSectionForLabel(tryCatchNode.start);
+            MethodSection endSection = method.getSectionForLabel(tryCatchNode.end);
+            Set<MethodSection> trySections = method.getSectionsRange(startSection, endSection);
+            for(DexLabel handler : tryCatchNode.handler) {
+                MethodSection catchSection = method.getSectionForLabel(handler);
+                for(MethodSection trySection : trySections) {
+                    MethodSectionJump jump = new MethodSectionJump(trySection, catchSection, -1);
+                    graph.adjacency.get(trySection).add(jump);
                 }
             }
         }

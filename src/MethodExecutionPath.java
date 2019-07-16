@@ -45,13 +45,6 @@ public class MethodExecutionPath {
             RegisterDependencyNode currentNode = queue.remove();
             List<RegisterDependencyNode> adjacent = registerDependencyGraph.adjacency.get(currentNode);
 
-            if(adjacent == null) {
-                // it seems we are missing variables
-                // TODO: assume that the string is not encrypted!
-                System.out.println("MISSING VARIABLES!!!!!!");
-                return null;
-            }
-
             for(RegisterDependencyNode adjacentNode : adjacent) {
                 if(!visited.contains(adjacentNode)) {
                     visited.add(adjacentNode);

@@ -9,10 +9,12 @@ public class RegisterDependencyGraph {
     public Map<RegisterDependencyNode, List<RegisterDependencyNode>> adjacency = new HashMap<>();
     public Map<Integer, RegisterDependencyNode> activeRegister = new HashMap<>();
     public ArrayList<Set<RegisterDependencyNode>> statementToRegister;
+    public Set<Integer> undefinedRegisters;
 
     public RegisterDependencyGraph(MethodExecutionPath methodExecutionPath) {
         this.methodExecutionPath = methodExecutionPath;
         this.statementToRegister = new ArrayList<>();
+        this.undefinedRegisters = new HashSet<>();
         for(int i = 0; i < this.methodExecutionPath.method.methodNode.codeNode.stmts.size(); i++) {
             statementToRegister.add(new HashSet<>());
         }
@@ -46,7 +48,19 @@ public class RegisterDependencyGraph {
     }
 
     private RegisterDependencyNode getActiveRegister(int registerIndex) {
-        return activeRegister.get(registerIndex);
+        RegisterDependencyNode node = activeRegister.get(registerIndex);
+        if(node == null) {
+            // this register is not defined so far!
+            undefinedRegisters.add(registerIndex);
+            System.out.println("Found undefined variable: " + registerIndex);
+
+            // define it and return the new active register
+            RegisterDependencyNode newNode = new RegisterDependencyNode(registerIndex, 0);
+            activeRegister.put(registerIndex, newNode);
+            adjacency.put(newNode, new ArrayList<>());
+            return newNode;
+        }
+        return node;
     }
 
     public void build() {
@@ -164,6 +178,7 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.a));
+                makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.c));
                 statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.b));
             }
             else if(stmtNode.op == Op.AGET_WIDE || stmtNode.op == Op.AGET || stmtNode.op == Op.AGET_BOOLEAN || stmtNode.op == Op.AGET_OBJECT || stmtNode.op == Op.AGET_BYTE) {

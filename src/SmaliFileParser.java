@@ -55,11 +55,19 @@ public class SmaliFileParser {
             }
         }
 
-        // for each possible path, build a register dependency graph and compute involved statements
-        boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
+        // build register dependency graphs
+        Set<Integer> undefinedRegisters = new HashSet<>();
         for(MethodExecutionPath path : paths) {
             path.buildRegisterDependencyGraph();
             System.out.println("Register dependency graph: " + path.registerDependencyGraph.adjacency);
+            undefinedRegisters.addAll(path.registerDependencyGraph.undefinedRegisters);
+        }
+
+        System.out.println(undefinedRegisters);
+
+        // for each possible path, build a register dependency graph and compute involved statements
+        boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
+        for(MethodExecutionPath path : paths) {
             path.computeInvolvedStatements();
             for(int i = 0; i < path.involvedStatements.length; i++) {
                 involvedStatements[i] = involvedStatements[i] || path.involvedStatements[i];
@@ -153,9 +161,9 @@ public class SmaliFileParser {
         }
 
         for (DexMethodNode methodNode : rootNode.methods) {
-//            if(!methodNode.method.getName().equals("nBp")) {
-//                continue;
-//            }
+            if(!methodNode.method.getName().equals("toString")) {
+                continue;
+            }
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
