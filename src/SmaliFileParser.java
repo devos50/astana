@@ -73,6 +73,8 @@ public class SmaliFileParser {
             }
         }
 
+        snippet.finalize();
+
         if(snippet.stringIsEncrypted) {
             snippets.add(snippet);
         }
