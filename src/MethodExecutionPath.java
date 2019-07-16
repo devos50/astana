@@ -1,4 +1,6 @@
 import com.googlecode.d2j.node.insn.DexStmtNode;
+import com.googlecode.d2j.node.insn.JumpStmtNode;
+import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
 
 import java.util.*;
@@ -85,11 +87,15 @@ public class MethodExecutionPath {
 
         Set<RegisterDependencyNode> involvedRegisters = getDependenciesForRegister(rootNode);
 
-        // also include dependencies for the jumps
+        // also include dependencies for conditional jumps
         for(MethodSectionJump jump : path) {
             if(jump.jumpStmtIndex == -1) { continue; }
-            for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
-                involvedRegisters.addAll(getDependenciesForRegister(node));
+
+            DexStmtNode jumpStmtNode = method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex);
+            if(jumpStmtNode instanceof JumpStmtNode && jumpStmtNode.op != Op.GOTO) {
+                for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
+                    involvedRegisters.addAll(getDependenciesForRegister(node));
+                }
             }
         }
 
@@ -103,5 +109,10 @@ public class MethodExecutionPath {
         }
 
         return new Pair<>(involvedRegisters, involvedStatements);
+    }
+
+    @Override
+    public String toString() {
+        return path.toString();
     }
 }

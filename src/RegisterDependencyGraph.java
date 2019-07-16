@@ -65,6 +65,27 @@ public class RegisterDependencyGraph {
         return node;
     }
 
+    public boolean hasDependency(RegisterDependencyNode source, RegisterDependencyNode dest) {
+        Set<RegisterDependencyNode> visited = new HashSet<>();
+        LinkedList<RegisterDependencyNode> queue = new LinkedList<>();
+        visited.add(source);
+        queue.add(source);
+
+        while(!queue.isEmpty()) {
+            RegisterDependencyNode currentNode = queue.remove();
+            List<RegisterDependencyNode> adjacent = adjacency.get(currentNode);
+
+            for(RegisterDependencyNode adjacentNode : adjacent) {
+                if(!visited.contains(adjacentNode)) {
+                    visited.add(adjacentNode);
+                    queue.add(adjacentNode);
+                }
+            }
+        }
+
+        return visited.contains(dest);
+    }
+
     public void build() {
         // we now build the register dependency graph in a forward way. Start from the string declaration and end at the potential line where the string is decrypted, while following the path.
 //        System.out.println("Building register dependency graph: ");

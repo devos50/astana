@@ -17,6 +17,8 @@ public class StringSnippet {
     public int stringResultRegister = 0;
     public boolean stringIsEncrypted = true;
     public boolean finalized = true;
+    public boolean decryptionSuccessful = false;
+    public String decryptedString = null;
 
     public StringSnippet(File file, Method method, int stringInitIndex) {
         this.file = file;

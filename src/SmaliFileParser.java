@@ -22,20 +22,37 @@ public class SmaliFileParser {
         // find all possible paths from the string declaration to the point where the string is decrypted
         Set<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
 
-        // build register dependency graphs
+        // build register dependency graphs and compute involved statements
+        boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
         Set<Integer> undefinedRegisters = new HashSet<>();
         for(MethodExecutionPath path : stringPaths) {
             path.buildRegisterDependencyGraph();
             undefinedRegisters.addAll(path.registerDependencyGraph.undefinedRegisters);
-        }
 
-        boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
+            Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(snippet.stringResultRegister);
+            Set<RegisterDependencyNode> involvedRegisters = pair.getKey();
+            boolean[] pathInvolvedStatements = pair.getValue();
+
+            // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
+            ConstStmtNode stringInitNode = (ConstStmtNode) snippet.method.methodNode.codeNode.stmts.get(snippet.stringInitIndex);
+            RegisterDependencyNode destNode = new RegisterDependencyNode(stringInitNode.a, 1);
+            RegisterDependencyNode sourceNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
+            if(!path.registerDependencyGraph.hasDependency(sourceNode, destNode)) {
+                snippet.stringIsEncrypted = false;
+                break;
+            }
+
+            for(int i = 0; i < pathInvolvedStatements.length; i++) {
+                involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
+            }
+        }
 
         // we now check if there are undefined registers - if there are, create another dependency graph
         if(undefinedRegisters.size() > 0) {
             Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
             for(MethodExecutionPath path : backwardPaths) {
                 path.buildRegisterDependencyGraph();
+                // TODO check whether there are still undefined variables, if so, the string is not encrypted (dependency on parameter)!
                 for(Integer undefinedRegister : undefinedRegisters) {
                     Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(undefinedRegister);
                     boolean[] pathInvolvedStatements = pair.getValue();
@@ -43,25 +60,6 @@ public class SmaliFileParser {
                         involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
                     }
                 }
-            }
-        }
-
-        // for each possible string path, build a register dependency graph and compute involved statements
-        for(MethodExecutionPath path : stringPaths) {
-            Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(snippet.stringResultRegister);
-            Set<RegisterDependencyNode> involvedRegisters = pair.getKey();
-            boolean[] pathInvolvedStatements = pair.getValue();
-
-            // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
-            ConstStmtNode stringInitNode = (ConstStmtNode) snippet.method.methodNode.codeNode.stmts.get(snippet.stringInitIndex);
-            RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
-            if(!involvedRegisters.contains(stringNode)) {
-                snippet.stringIsEncrypted = false;
-                break;
-            }
-
-            for(int i = 0; i < pathInvolvedStatements.length; i++) {
-                involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
             }
         }
 
@@ -165,7 +163,7 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("s")) {
+//            if(!methodNode.method.getName().equals("zzm")) {
 //                continue;
 //            }
 
