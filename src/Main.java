@@ -23,7 +23,7 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/barclays-smali");
+        File analyzePath = new File("data/lloyds-smali");
         List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
         System.out.println("Number of smali files: " + files.size());
 
@@ -40,12 +40,12 @@ public class Main {
 //        snippets.addAll(parser.snippets);
 //        System.out.println("Snippets: " + snippets.size());
 
-        for(StringSnippet snippet : snippets) {
-            StringDecryptor.decrypt(snippet);
-            if(snippet.decryptionSuccessful) {
-                System.out.println("--> decrypted --> " + snippet.decryptedString);
-            }
-        }
+//        for(StringSnippet snippet : snippets) {
+//            StringDecryptor.decrypt(snippet);
+//            if(snippet.decryptionSuccessful) {
+//                System.out.println("--> decrypted --> " + snippet.decryptedString);
+//            }
+//        }
 
 //        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
 //

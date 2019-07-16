@@ -90,9 +90,16 @@ public class SmaliFileParser {
             MethodStmtNode mnn = (MethodStmtNode) stmtNode;
             if(mnn.method.getReturnType().equals("Ljava/lang/String;") && mnn.args.length > 0) {
                 // get the next statement -> this should be a move-result-object
-                DexStmtNode nextStmtNode = methodNode.codeNode.stmts.get(stmtIndex + 1);
+                // skip possible jump statements
+                int offset = 1;
+                DexStmtNode nextStmtNode = methodNode.codeNode.stmts.get(stmtIndex + offset);
+                while(nextStmtNode.op == null) {
+                    offset += 1;
+                    nextStmtNode = methodNode.codeNode.stmts.get(stmtIndex + offset);
+                }
+
                 if(nextStmtNode.op != Op.MOVE_RESULT_OBJECT) {
-                    throw new RuntimeException("Next stement not move-result-object!");
+                    throw new RuntimeException("Next statement not move-result-object!");
                 }
                 Stmt1RNode castNode = (Stmt1RNode) nextStmtNode;
                 return new Pair<>(stmtIndex + 1, castNode.a);

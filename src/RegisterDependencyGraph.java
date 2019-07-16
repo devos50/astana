@@ -167,7 +167,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, getActiveRegister(typeStmtNode.b));
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.CMP_LONG || stmtNode.op == Op.CMPL_DOUBLE || stmtNode.op == Op.CMPL_FLOAT || stmtNode.op == Op.CMPG_DOUBLE) {
+            else if(stmtNode.op == Op.CMP_LONG || stmtNode.op == Op.CMPL_DOUBLE || stmtNode.op == Op.CMPL_FLOAT || stmtNode.op == Op.CMPG_DOUBLE || stmtNode.op == Op.CMPG_FLOAT) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 RegisterDependencyNode newRegister = makeNewRegister(castNode.a);
                 makeDependency(newRegister, getActiveRegister(castNode.b));
