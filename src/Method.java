@@ -6,6 +6,7 @@ import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
 import com.googlecode.d2j.reader.Op;
+import javafx.util.Pair;
 
 import java.util.*;
 
@@ -134,6 +135,42 @@ public class Method {
             }
         }
         return null;
+    }
+
+    public Set<MethodExecutionPath> getExecutionPaths(int sourceStmtIndex, int destStmtIndex) {
+        Set<MethodExecutionPath> paths = new HashSet<>();
+        LinkedList<Pair<MethodSection, MethodExecutionPath>> queue = new LinkedList<>();
+        MethodSection sourceSection = getSectionForStatement(sourceStmtIndex);
+        MethodSection destinationSection = getSectionForStatement(destStmtIndex);
+        MethodExecutionPath firstPath = new MethodExecutionPath(this, sourceStmtIndex, destStmtIndex);
+        firstPath.sectionsVisited.add(sourceSection);
+        queue.add(new Pair<>(sourceSection, firstPath));
+        while(!queue.isEmpty()) {
+            Pair<MethodSection, MethodExecutionPath> pair = queue.remove();
+            MethodSection currentNode = pair.getKey();
+            MethodExecutionPath currentPath = pair.getValue();
+            if(currentNode == destinationSection) {
+                paths.add(currentPath);
+                continue;
+            }
+
+            // get outgoing edges and add them to the queue
+            for(MethodSectionJump jump : controlFlowGraph.adjacency.get(currentNode)) {
+                if(!currentPath.path.contains(jump)) {
+
+                    // can we even make the jump?
+                    if(currentNode == sourceSection && sourceStmtIndex > jump.jumpStmtIndex) {
+                        continue;
+                    }
+
+                    MethodExecutionPath copied = currentPath.copy();
+                    copied.path.add(jump);
+                    copied.sectionsVisited.add(jump.toSection);
+                    queue.add(new Pair<>(jump.toSection, copied));
+                }
+            }
+        }
+        return paths;
     }
 
 }

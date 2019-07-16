@@ -66,12 +66,12 @@ public class RegisterDependencyGraph {
     public void build() {
         // we now build the register dependency graph in a forward way. Start from the string declaration and end at the potential line where the string is decrypted, while following the path.
 //        System.out.println("Building register dependency graph: ");
-        int currentStmtIndex = methodExecutionPath.stringInitIndex;
-        MethodSection currentSection = methodExecutionPath.method.getSectionForStatement(methodExecutionPath.stringInitIndex);
+        int currentStmtIndex = methodExecutionPath.sourceStmtIndex;
+        MethodSection currentSection = methodExecutionPath.method.getSectionForStatement(methodExecutionPath.sourceStmtIndex);
         int currentJumpIndex = 0;
         while(true) {
             DexStmtNode stmtNode = methodExecutionPath.method.methodNode.codeNode.stmts.get(currentStmtIndex);
-//            System.out.println(stmtNode.op);
+            System.out.println(stmtNode.op);
             if(stmtNode instanceof ConstStmtNode) {
                 // definition of a constant -> set new active register
                 ConstStmtNode constStmtNode = (ConstStmtNode) stmtNode;
@@ -216,8 +216,10 @@ public class RegisterDependencyGraph {
             }
             else if(stmtNode.op == Op.XOR_INT_LIT8 || stmtNode.op == Op.ADD_INT_LIT8 || stmtNode.op == Op.MUL_INT_LIT16 || stmtNode.op == Op.SHL_INT_LIT8 || stmtNode.op == Op.MUL_INT_LIT8 || stmtNode.op == Op.AND_INT_LIT16 || stmtNode.op == Op.DIV_INT_LIT8 || stmtNode.op == Op.ADD_INT_LIT16 || stmtNode.op == Op.SHR_INT_LIT8 || stmtNode.op == Op.AND_INT_LIT8 || stmtNode.op == Op.RSUB_INT_LIT8) {
                 Stmt2R1NNode castStmtNode = (Stmt2R1NNode) stmtNode;
-                makeDependency(getActiveRegister(castStmtNode.distReg), getActiveRegister(castStmtNode.srcReg));
-                statementToRegister.get(currentStmtIndex).add(getActiveRegister(castStmtNode.distReg));
+                RegisterDependencyNode oldRegisterSrc = getActiveRegister(castStmtNode.srcReg);
+                RegisterDependencyNode newRegister = makeNewRegister(castStmtNode.distReg);
+                makeDependency(newRegister, oldRegisterSrc);
+                statementToRegister.get(currentStmtIndex).add(newRegister);
             }
             else if(stmtNode.op == Op.IPUT_OBJECT || stmtNode.op == Op.IPUT_BOOLEAN || stmtNode.op == Op.IPUT || stmtNode.op == Op.IPUT_WIDE) {
                 // TODO ignore iput for now!
@@ -251,10 +253,10 @@ public class RegisterDependencyGraph {
                 throw new RuntimeException("Unknown statement type when building dependency graph! " + stmtNode.toString() + ", " + stmtNode.op);
             }
 
-//            System.out.println(adjacency);
+            System.out.println(adjacency);
 
             // are we done?
-            if(currentStmtIndex == methodExecutionPath.stringDecryptIndex) {
+            if(currentStmtIndex == methodExecutionPath.destStmtIndex) {
                 break;
             }
             else if(currentJumpIndex == methodExecutionPath.path.size() && currentStmtIndex == currentSection.endIndex - 1) {

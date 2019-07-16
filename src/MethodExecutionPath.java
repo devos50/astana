@@ -1,30 +1,24 @@
-import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
-import com.googlecode.d2j.reader.Op;
 
 import java.util.*;
 
 public class MethodExecutionPath {
 
     public Method method;
-    public int stringInitIndex;
-    public int stringDecryptIndex;
-    public int stringResultRegister;
+    public int sourceStmtIndex;
+    public int destStmtIndex;
     public List<MethodSection> sectionsVisited = new ArrayList<>();
     public List<MethodSectionJump> path = new ArrayList<>();
     public RegisterDependencyGraph registerDependencyGraph;
-    public boolean[] involvedStatements;
 
-    public MethodExecutionPath(Method method, int stringInitIndex, int stringDecryptIndex, int stringResultRegister) {
+    public MethodExecutionPath(Method method, int stringInitIndex, int stringDecryptIndex) {
         this.method = method;
-        this.stringInitIndex = stringInitIndex;
-        this.stringDecryptIndex = stringDecryptIndex;
-        this.stringResultRegister = stringResultRegister;
-        this.involvedStatements = new boolean[this.method.methodNode.codeNode.stmts.size()];
+        this.sourceStmtIndex = stringInitIndex;
+        this.destStmtIndex = stringDecryptIndex;
     }
 
     public MethodExecutionPath copy() {
-        MethodExecutionPath copy = new MethodExecutionPath(this.method, this.stringInitIndex, this.stringDecryptIndex, this.stringResultRegister);
+        MethodExecutionPath copy = new MethodExecutionPath(this.method, this.sourceStmtIndex, this.destStmtIndex);
         copy.sectionsVisited.addAll(this.sectionsVisited);
         copy.path.addAll(this.path);
         return copy;
@@ -56,32 +50,34 @@ public class MethodExecutionPath {
         return visited;
     }
 
-    public void computeInvolvedStatements() {
+    public boolean[] computeInvolvedStatements(int stringResultRegister) {
         if(this.registerDependencyGraph == null) {
             throw new RuntimeException("register dependency graph should be computed first!");
         }
 
+        boolean[] involvedStatements = new boolean[this.method.methodNode.codeNode.stmts.size()];
+
         // first, include obvious statements, like the sections we visit in this path
-        MethodSection stringInitSection = method.getSectionForStatement(stringInitIndex);
+        MethodSection stringInitSection = method.getSectionForStatement(sourceStmtIndex);
         if(stringInitSection.sectionLabel.displayName != null && !stringInitSection.sectionLabel.displayName.equals("start")) {
-            this.involvedStatements[stringInitSection.beginIndex - 1] = true; // label declaration
+            involvedStatements[stringInitSection.beginIndex - 1] = true; // label declaration
         }
 
         for(MethodSectionJump jump : path) {
             if(jump.fromSection.sectionLabel.displayName != null && !jump.fromSection.sectionLabel.displayName.equals("start")) {
                 int fromSectionLabelStmtIndex = jump.fromSection.beginIndex - 1;
-                this.involvedStatements[fromSectionLabelStmtIndex] = true;
+                involvedStatements[fromSectionLabelStmtIndex] = true;
             }
 
             int toSectionLabelStmtIndex = jump.toSection.beginIndex - 1;
-            this.involvedStatements[toSectionLabelStmtIndex] = true;
-            this.involvedStatements[jump.jumpStmtIndex] = true;
+            involvedStatements[toSectionLabelStmtIndex] = true;
+            involvedStatements[jump.jumpStmtIndex] = true;
         }
 
-        DexStmtNode lastStmtNode = method.methodNode.codeNode.stmts.get(stringDecryptIndex);
-        if(lastStmtNode.op != Op.MOVE_RESULT_OBJECT && lastStmtNode.op != Op.INVOKE_DIRECT) {
-            throw new RuntimeException("Pruning: last node not move-result-object or invoke-direct!");
-        }
+        DexStmtNode lastStmtNode = method.methodNode.codeNode.stmts.get(destStmtIndex);
+        //if(lastStmtNode.op != Op.MOVE_RESULT_OBJECT && lastStmtNode.op != Op.INVOKE_DIRECT) {
+        //    throw new RuntimeException("Pruning: last node not move-result-object or invoke-direct!");
+        //}
 
         // perform a BFS from the statement where the string is possibly decrypted, to the init method
         RegisterDependencyNode rootNode = registerDependencyGraph.activeRegister.get(stringResultRegister);
@@ -94,12 +90,12 @@ public class MethodExecutionPath {
             }
         }
 
-        // check whether the original string declaration is visited. If not, this string is probably not encrypted
-        ConstStmtNode stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(stringInitIndex);
-        RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
-        if(!involvedRegisters.contains(stringNode)) {
-            return;
-        }
+//        // check whether the original string declaration is visited. If not, this string is probably not encrypted
+//        ConstStmtNode stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(sourceStmtIndex);
+//        RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
+//        if(!involvedRegisters.contains(stringNode)) {
+//            return;
+//        }
 
         // get all statements that are involved
         for(RegisterDependencyNode visitedNode : involvedRegisters) {
@@ -109,5 +105,7 @@ public class MethodExecutionPath {
                 }
             }
         }
+
+        return involvedStatements;
     }
 }

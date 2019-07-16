@@ -20,57 +20,39 @@ public class SmaliFileParser {
 
     public void processSnippet(StringSnippet snippet) {
         // find all possible paths from the string declaration to the point where the string is decrypted
-        // TODO check whether we can even make the jump!
-
-        Set<MethodExecutionPath> paths = new HashSet<>();
-        LinkedList<Pair<MethodSection, MethodExecutionPath>> queue = new LinkedList<>();
-        MethodSection sourceSection = snippet.method.getSectionForStatement(snippet.stringInitIndex);
-        MethodSection destinationSection = snippet.method.getSectionForStatement(snippet.stringDecryptedIndex);
-        MethodExecutionPath firstPath = new MethodExecutionPath(snippet.method, snippet.stringInitIndex, snippet.stringDecryptedIndex, snippet.stringResultRegister);
-        firstPath.sectionsVisited.add(sourceSection);
-        queue.add(new Pair<>(sourceSection, firstPath));
-        while(!queue.isEmpty()) {
-            Pair<MethodSection, MethodExecutionPath> pair = queue.remove();
-            MethodSection currentNode = pair.getKey();
-            MethodExecutionPath currentPath = pair.getValue();
-            if(currentNode == destinationSection) {
-                paths.add(currentPath);
-                continue;
-            }
-
-            // get outgoing edges and add them to the queue
-            for(MethodSectionJump jump : snippet.method.controlFlowGraph.adjacency.get(currentNode)) {
-                if(!currentPath.path.contains(jump)) {
-
-                    // can we even make the jump?
-                    if(currentNode == sourceSection && snippet.stringInitIndex > jump.jumpStmtIndex) {
-                        continue;
-                    }
-
-                    MethodExecutionPath copied = currentPath.copy();
-                    copied.path.add(jump);
-                    copied.sectionsVisited.add(jump.toSection);
-                    queue.add(new Pair<>(jump.toSection, copied));
-                }
-            }
-        }
+        Set<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
 
         // build register dependency graphs
         Set<Integer> undefinedRegisters = new HashSet<>();
-        for(MethodExecutionPath path : paths) {
+        for(MethodExecutionPath path : stringPaths) {
             path.buildRegisterDependencyGraph();
             System.out.println("Register dependency graph: " + path.registerDependencyGraph.adjacency);
             undefinedRegisters.addAll(path.registerDependencyGraph.undefinedRegisters);
         }
 
-        System.out.println(undefinedRegisters);
-
-        // for each possible path, build a register dependency graph and compute involved statements
         boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
-        for(MethodExecutionPath path : paths) {
-            path.computeInvolvedStatements();
-            for(int i = 0; i < path.involvedStatements.length; i++) {
-                involvedStatements[i] = involvedStatements[i] || path.involvedStatements[i];
+
+        // we now check if there are undefined registers - if there are, create another dependency graph
+        if(undefinedRegisters.size() > 0) {
+            Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
+            for(MethodExecutionPath path : backwardPaths) {
+                System.out.println("Path: " + path.path);
+                path.buildRegisterDependencyGraph();
+                for(Integer undefinedRegister : undefinedRegisters) {
+                    boolean[] pathInvolvedStatements = path.computeInvolvedStatements(undefinedRegister);
+                    for(int i = 0; i < pathInvolvedStatements.length; i++) {
+                        involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
+                    }
+                }
+                System.out.println("Register dependency graph (backward): " + path.registerDependencyGraph.adjacency);
+            }
+        }
+
+        // for each possible string path, build a register dependency graph and compute involved statements
+        for(MethodExecutionPath path : stringPaths) {
+            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(snippet.stringResultRegister);
+            for(int i = 0; i < pathInvolvedStatements.length; i++) {
+                involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
             }
         }
 
