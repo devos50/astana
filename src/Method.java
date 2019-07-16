@@ -2,6 +2,7 @@
 import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.TryCatchNode;
+import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
@@ -18,7 +19,6 @@ public class Method {
 
     public Method(DexMethodNode methodNode) {
         this.methodNode = methodNode;
-        System.out.println(this.methodNode.codeNode.tryStmts);
 
         // prune labels that we are never jumping to
         Set<DexLabel> jumpLabels = new HashSet<>();
@@ -29,10 +29,12 @@ public class Method {
                 jumpLabels.add(jumpNode.label);
             }
         }
-        for(TryCatchNode tryCatchNode : this.methodNode.codeNode.tryStmts) {
-            jumpLabels.add(tryCatchNode.start);
-            jumpLabels.add(tryCatchNode.end);
-            jumpLabels.addAll(Arrays.asList(tryCatchNode.handler));
+        if(this.methodNode.codeNode.tryStmts != null) {
+            for(TryCatchNode tryCatchNode : this.methodNode.codeNode.tryStmts) {
+                jumpLabels.add(tryCatchNode.start);
+                jumpLabels.add(tryCatchNode.end);
+                jumpLabels.addAll(Arrays.asList(tryCatchNode.handler));
+            }
         }
 
         Set<DexLabelStmtNode> toRemove = new HashSet<>();
@@ -41,7 +43,6 @@ public class Method {
             if(node instanceof DexLabelStmtNode) {
                 DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
                 if(!jumpLabels.contains(labelNode.label)) {
-                    System.out.println("Filtering out: " + labelNode.label);
                     toRemove.add(labelNode);
                 }
             }
@@ -88,21 +89,23 @@ public class Method {
             }
         }
 
-        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-            DexStmtNode node = methodNode.codeNode.stmts.get(i);
-            if(node instanceof DexLabelStmtNode) {
-                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
-                System.out.println(i + ": " + labelNode.label);
-            }
-            else {
-                System.out.println(i + ": " + node.op);
-            }
-        }
+//        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+//            DexStmtNode node = methodNode.codeNode.stmts.get(i);
+//            if(node instanceof DexLabelStmtNode) {
+//                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
+//                System.out.println(i + ": " + labelNode.label);
+//            }
+//            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
+//                ConstStmtNode constStmtNode = (ConstStmtNode) node;
+//                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
+//            }
+//            else {
+//                System.out.println(i + ": " + node.op);
+//            }
+//        }
 
         // build CFG
         controlFlowGraph = ControlFlowGraph.build(this);
-
-        System.out.println("Section graph: " + controlFlowGraph.adjacency);
     }
 
     public Set<MethodSection> getSectionsRange(MethodSection from, MethodSection to) {
@@ -146,6 +149,11 @@ public class Method {
         firstPath.sectionsVisited.add(sourceSection);
         queue.add(new Pair<>(sourceSection, firstPath));
         while(!queue.isEmpty()) {
+            // if there are too many items in the queue, the method is very complex; return an empty set
+            if(queue.size() >= 100000) {
+                return paths;
+            }
+
             Pair<MethodSection, MethodExecutionPath> pair = queue.remove();
             MethodSection currentNode = pair.getKey();
             MethodExecutionPath currentPath = pair.getValue();

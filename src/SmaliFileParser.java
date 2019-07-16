@@ -26,7 +26,6 @@ public class SmaliFileParser {
         Set<Integer> undefinedRegisters = new HashSet<>();
         for(MethodExecutionPath path : stringPaths) {
             path.buildRegisterDependencyGraph();
-            System.out.println("Register dependency graph: " + path.registerDependencyGraph.adjacency);
             undefinedRegisters.addAll(path.registerDependencyGraph.undefinedRegisters);
         }
 
@@ -36,21 +35,31 @@ public class SmaliFileParser {
         if(undefinedRegisters.size() > 0) {
             Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
             for(MethodExecutionPath path : backwardPaths) {
-                System.out.println("Path: " + path.path);
                 path.buildRegisterDependencyGraph();
                 for(Integer undefinedRegister : undefinedRegisters) {
-                    boolean[] pathInvolvedStatements = path.computeInvolvedStatements(undefinedRegister);
+                    Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(undefinedRegister);
+                    boolean[] pathInvolvedStatements = pair.getValue();
                     for(int i = 0; i < pathInvolvedStatements.length; i++) {
                         involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
                     }
                 }
-                System.out.println("Register dependency graph (backward): " + path.registerDependencyGraph.adjacency);
             }
         }
 
         // for each possible string path, build a register dependency graph and compute involved statements
         for(MethodExecutionPath path : stringPaths) {
-            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(snippet.stringResultRegister);
+            Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(snippet.stringResultRegister);
+            Set<RegisterDependencyNode> involvedRegisters = pair.getKey();
+            boolean[] pathInvolvedStatements = pair.getValue();
+
+            // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
+            ConstStmtNode stringInitNode = (ConstStmtNode) snippet.method.methodNode.codeNode.stmts.get(snippet.stringInitIndex);
+            RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
+            if(!involvedRegisters.contains(stringNode)) {
+                snippet.stringIsEncrypted = false;
+                break;
+            }
+
             for(int i = 0; i < pathInvolvedStatements.length; i++) {
                 involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
             }
@@ -64,7 +73,9 @@ public class SmaliFileParser {
             }
         }
 
-        snippets.add(snippet);
+        if(snippet.stringIsEncrypted) {
+            snippets.add(snippet);
+        }
     }
 
     public Pair<Integer, Integer> isPotentialStringDecryption(DexMethodNode methodNode, int stmtIndex) {
@@ -112,6 +123,12 @@ public class SmaliFileParser {
             List<MethodSectionJump> adjacent = snippet.method.controlFlowGraph.adjacency.get(currentSection);
 
             for(MethodSectionJump jump : adjacent) {
+                if(jump.jumpStmtIndex == -1) {
+                    // This is a jump made by a catch. If the string init is in a try block, then the decryption method will (most likely) be not be in the catch block.
+                    // Therefore, we ignore this jump.
+                    continue;
+                }
+
                 MethodSection adjacentSection = jump.toSection;
                 if(!visited.contains(adjacentSection)) {
                     for(int stmtIndex = adjacentSection.beginIndex; stmtIndex < adjacentSection.endIndex; stmtIndex++) {
@@ -143,12 +160,12 @@ public class SmaliFileParser {
         }
 
         for (DexMethodNode methodNode : rootNode.methods) {
-            if(!methodNode.method.getName().equals("toString")) {
-                continue;
-            }
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
+//            if(!methodNode.method.getName().equals("s")) {
+//                continue;
+//            }
 
             System.out.println("Processing method: " + methodNode.method.getName());
             Method method = new Method(methodNode);

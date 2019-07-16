@@ -43,6 +43,9 @@ public class RegisterDependencyGraph {
             if(stmtNode instanceof MethodStmtNode) {
                 return index;
             }
+            else if(stmtNode.op == Op.FILLED_NEW_ARRAY) {
+                return index;
+            }
         }
         return -1;
     }
@@ -52,7 +55,6 @@ public class RegisterDependencyGraph {
         if(node == null) {
             // this register is not defined so far!
             undefinedRegisters.add(registerIndex);
-            System.out.println("Found undefined variable: " + registerIndex);
 
             // define it and return the new active register
             RegisterDependencyNode newNode = new RegisterDependencyNode(registerIndex, 0);
@@ -71,7 +73,7 @@ public class RegisterDependencyGraph {
         int currentJumpIndex = 0;
         while(true) {
             DexStmtNode stmtNode = methodExecutionPath.method.methodNode.codeNode.stmts.get(currentStmtIndex);
-            System.out.println(stmtNode.op);
+//            System.out.println(stmtNode.op);
             if(stmtNode instanceof ConstStmtNode) {
                 // definition of a constant -> set new active register
                 ConstStmtNode constStmtNode = (ConstStmtNode) stmtNode;
@@ -104,7 +106,7 @@ public class RegisterDependencyGraph {
                     }
                 }
             }
-            else if(stmtNode.op == Op.MOVE_RESULT || stmtNode.op == Op.MOVE_RESULT_OBJECT || stmtNode.op == Op.MOVE_RESULT_WIDE) {
+            else if(stmtNode.op == Op.MOVE_RESULT || stmtNode.op == Op.MOVE_RESULT_OBJECT || stmtNode.op == Op.MOVE_RESULT_WIDE || stmtNode.op == Op.MOVE_EXCEPTION) {
                 // we store the result from a method call, create dependencies
                 Stmt1RNode moveStmtNode = (Stmt1RNode) stmtNode;
 
@@ -112,11 +114,22 @@ public class RegisterDependencyGraph {
                 if(prevMethodStmtIndex == -1) {
                     throw new RuntimeException("Could not find corresponding method for move-result(-object)!");
                 }
-                MethodStmtNode prevMethodStmtNode = (MethodStmtNode) methodExecutionPath.method.methodNode.codeNode.stmts.get(prevMethodStmtIndex);
+
                 int[] args = new int[0];
-                if(prevMethodStmtNode.args != null) { args = prevMethodStmtNode.args; }
-                RegisterDependencyNode[] argNodes = new RegisterDependencyNode[args.length];
-                for(int i = 0; i < args.length; i++) { argNodes[i] = getActiveRegister(prevMethodStmtNode.args[i]); }
+                RegisterDependencyNode[] argNodes = new RegisterDependencyNode[0];
+                DexStmtNode prevStmtNode = methodExecutionPath.method.methodNode.codeNode.stmts.get(prevMethodStmtIndex);
+                if(prevStmtNode instanceof FilledNewArrayStmtNode) {
+                    FilledNewArrayStmtNode arrayStmtNode = (FilledNewArrayStmtNode) prevStmtNode;
+                    if(arrayStmtNode.args != null) { args = arrayStmtNode.args; }
+                    argNodes = new RegisterDependencyNode[args.length];
+                    for(int i = 0; i < args.length; i++) { argNodes[i] = getActiveRegister(arrayStmtNode.args[i]); }
+                }
+                else if(prevStmtNode instanceof MethodStmtNode) {
+                    MethodStmtNode prevMethodStmtNode = (MethodStmtNode) prevStmtNode;
+                    if(prevMethodStmtNode.args != null) { args = prevMethodStmtNode.args; }
+                    argNodes = new RegisterDependencyNode[args.length];
+                    for(int i = 0; i < args.length; i++) { argNodes[i] = getActiveRegister(prevMethodStmtNode.args[i]); }
+                }
 
                 RegisterDependencyNode newRegister = makeNewRegister(moveStmtNode.a);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
@@ -140,7 +153,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, getActiveRegister(castNode.c));
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.INT_TO_LONG || stmtNode.op == Op.INT_TO_DOUBLE || stmtNode.op == Op.LONG_TO_DOUBLE || stmtNode.op == Op.DOUBLE_TO_INT || stmtNode.op == Op.INT_TO_FLOAT || stmtNode.op == Op.INT_TO_CHAR || stmtNode.op == Op.INT_TO_SHORT) {
+            else if(stmtNode.op == Op.INT_TO_LONG || stmtNode.op == Op.INT_TO_DOUBLE || stmtNode.op == Op.LONG_TO_DOUBLE || stmtNode.op == Op.DOUBLE_TO_INT || stmtNode.op == Op.INT_TO_FLOAT || stmtNode.op == Op.INT_TO_CHAR || stmtNode.op == Op.INT_TO_SHORT || stmtNode.op == Op.FLOAT_TO_DOUBLE) {
                 Stmt2RNode castNode = (Stmt2RNode) stmtNode;
                 RegisterDependencyNode dependencyRegister = getActiveRegister(castNode.b);
                 RegisterDependencyNode newRegister = makeNewRegister(castNode.a);
@@ -196,7 +209,8 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, getActiveRegister(castNode.b));
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.SUB_INT || stmtNode.op == Op.DIV_DOUBLE || stmtNode.op == Op.MUL_INT || stmtNode.op == Op.SUB_LONG || stmtNode.op == Op.MUL_DOUBLE || stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT) {
+            else if(stmtNode.op == Op.SUB_INT || stmtNode.op == Op.DIV_DOUBLE || stmtNode.op == Op.MUL_INT || stmtNode.op == Op.SUB_LONG || stmtNode.op == Op.MUL_DOUBLE ||
+                    stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT || stmtNode.op == Op.AND_INT || stmtNode.op == Op.XOR_INT) {
                 Stmt3RNode castStmtNode = (Stmt3RNode) stmtNode;
                 RegisterDependencyNode oldRegisterA = getActiveRegister(castStmtNode.b);
                 RegisterDependencyNode oldRegisterB = getActiveRegister(castStmtNode.c);
@@ -205,7 +219,10 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, oldRegisterB);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.ADD_INT_2ADDR || stmtNode.op == Op.MUL_INT_2ADDR || stmtNode.op == Op.REM_INT_2ADDR || stmtNode.op == Op.SHL_INT_2ADDR || stmtNode.op == Op.AND_INT_2ADDR || stmtNode.op == Op.SUB_LONG_2ADDR || stmtNode.op == Op.ADD_LONG_2ADDR || stmtNode.op == Op.DIV_DOUBLE_2ADDR || stmtNode.op == Op.DIV_FLOAT_2ADDR || stmtNode.op == Op.DIV_INT_2ADDR || stmtNode.op == Op.SHR_INT_2ADDR || stmtNode.op == Op.OR_INT_2ADDR || stmtNode.op == Op.XOR_INT_2ADDR || stmtNode.op == Op.SUB_INT_2ADDR) {
+            else if(stmtNode.op == Op.ADD_INT_2ADDR || stmtNode.op == Op.MUL_INT_2ADDR || stmtNode.op == Op.REM_INT_2ADDR || stmtNode.op == Op.SHL_INT_2ADDR ||
+                    stmtNode.op == Op.AND_INT_2ADDR || stmtNode.op == Op.SUB_LONG_2ADDR || stmtNode.op == Op.ADD_LONG_2ADDR || stmtNode.op == Op.DIV_DOUBLE_2ADDR ||
+                    stmtNode.op == Op.DIV_FLOAT_2ADDR || stmtNode.op == Op.DIV_INT_2ADDR || stmtNode.op == Op.SHR_INT_2ADDR || stmtNode.op == Op.OR_INT_2ADDR ||
+                    stmtNode.op == Op.XOR_INT_2ADDR || stmtNode.op == Op.SUB_INT_2ADDR || stmtNode.op == Op.MUL_LONG_2ADDR) {
                 Stmt2RNode castStmtNode = (Stmt2RNode) stmtNode;
 
                 RegisterDependencyNode oldRegister = getActiveRegister(castStmtNode.a);
@@ -224,6 +241,9 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.IPUT_OBJECT || stmtNode.op == Op.IPUT_BOOLEAN || stmtNode.op == Op.IPUT || stmtNode.op == Op.IPUT_WIDE) {
                 // TODO ignore iput for now!
             }
+            else if(stmtNode.op == Op.FILLED_NEW_ARRAY) {
+                // filled new arrays are processed by move-result statements
+            }
             else if(stmtNode.op == Op.MONITOR_ENTER || stmtNode.op == Op.MONITOR_EXIT) {
                 // TODO ignore monitors for now!
             }
@@ -233,12 +253,14 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.CHECK_CAST) {
                 // TODO ignore check-cast for now!
             }
-            else if(stmtNode.op == Op.RETURN || stmtNode.op == Op.RETURN_OBJECT) {
+            else if(stmtNode.op == Op.RETURN || stmtNode.op == Op.RETURN_OBJECT || stmtNode.op == Op.RETURN_VOID) {
                 // TODO ignore returns for now!
             }
             else if(stmtNode instanceof JumpStmtNode) {
                 JumpStmtNode jumpStmtNode = (JumpStmtNode) stmtNode;
-                statementToRegister.get(currentStmtIndex).add(getActiveRegister(jumpStmtNode.a));
+                if(stmtNode.op != Op.GOTO && stmtNode.op != Op.GOTO_16 && stmtNode.op != Op.GOTO_32) {
+                    statementToRegister.get(currentStmtIndex).add(getActiveRegister(jumpStmtNode.a));
+                }
             }
             else if(stmtNode instanceof DexLabelStmtNode) {
                 // TODO ignore labels for now!
@@ -253,7 +275,7 @@ public class RegisterDependencyGraph {
                 throw new RuntimeException("Unknown statement type when building dependency graph! " + stmtNode.toString() + ", " + stmtNode.op);
             }
 
-            System.out.println(adjacency);
+//            System.out.println(adjacency);
 
             // are we done?
             if(currentStmtIndex == methodExecutionPath.destStmtIndex) {

@@ -1,4 +1,5 @@
 import com.googlecode.d2j.node.insn.DexStmtNode;
+import javafx.util.Pair;
 
 import java.util.*;
 
@@ -50,7 +51,7 @@ public class MethodExecutionPath {
         return visited;
     }
 
-    public boolean[] computeInvolvedStatements(int stringResultRegister) {
+    public Pair<Set<RegisterDependencyNode>, boolean[]> computeInvolvedStatements(int stringResultRegister) {
         if(this.registerDependencyGraph == null) {
             throw new RuntimeException("register dependency graph should be computed first!");
         }
@@ -64,6 +65,8 @@ public class MethodExecutionPath {
         }
 
         for(MethodSectionJump jump : path) {
+            if(jump.jumpStmtIndex == -1) { continue; }
+
             if(jump.fromSection.sectionLabel.displayName != null && !jump.fromSection.sectionLabel.displayName.equals("start")) {
                 int fromSectionLabelStmtIndex = jump.fromSection.beginIndex - 1;
                 involvedStatements[fromSectionLabelStmtIndex] = true;
@@ -74,28 +77,21 @@ public class MethodExecutionPath {
             involvedStatements[jump.jumpStmtIndex] = true;
         }
 
-        DexStmtNode lastStmtNode = method.methodNode.codeNode.stmts.get(destStmtIndex);
-        //if(lastStmtNode.op != Op.MOVE_RESULT_OBJECT && lastStmtNode.op != Op.INVOKE_DIRECT) {
-        //    throw new RuntimeException("Pruning: last node not move-result-object or invoke-direct!");
-        //}
-
-        // perform a BFS from the statement where the string is possibly decrypted, to the init method
+        // perform a BFS from the destination statement, to the source statement
         RegisterDependencyNode rootNode = registerDependencyGraph.activeRegister.get(stringResultRegister);
+        if(rootNode == null) {
+            return new Pair<>(new HashSet<>(), new boolean[this.method.methodNode.codeNode.stmts.size()]);
+        }
+
         Set<RegisterDependencyNode> involvedRegisters = getDependenciesForRegister(rootNode);
 
         // also include dependencies for the jumps
         for(MethodSectionJump jump : path) {
+            if(jump.jumpStmtIndex == -1) { continue; }
             for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
                 involvedRegisters.addAll(getDependenciesForRegister(node));
             }
         }
-
-//        // check whether the original string declaration is visited. If not, this string is probably not encrypted
-//        ConstStmtNode stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(sourceStmtIndex);
-//        RegisterDependencyNode stringNode = new RegisterDependencyNode(stringInitNode.a, 1);
-//        if(!involvedRegisters.contains(stringNode)) {
-//            return;
-//        }
 
         // get all statements that are involved
         for(RegisterDependencyNode visitedNode : involvedRegisters) {
@@ -106,6 +102,6 @@ public class MethodExecutionPath {
             }
         }
 
-        return involvedStatements;
+        return new Pair<>(involvedRegisters, involvedStatements);
     }
 }

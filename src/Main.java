@@ -54,25 +54,26 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-//        File analyzePath = new File("data/barclays-smali");
-//        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
-//        System.out.println("Number of smali files: " + files.size());
-//
-//        for(File smaliFile : files) {
-//            System.out.println("Processing file " + smaliFile.getPath());
-//            SmaliFileParser parser = new SmaliFileParser(smaliFile);
-//            parser.process();
-//            snippets.addAll(parser.snippets);
-//            System.out.println("Snippets: " + snippets.size());
-//        }
+        File analyzePath = new File("data/barclays-smali");
+        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
+        System.out.println("Number of smali files: " + files.size());
 
-        SmaliFileParser parser = new SmaliFileParser(new File("data/barclays-smali/android/support/v4/util/LruCache.smali"));
-        parser.process();
-        snippets.addAll(parser.snippets);
-
-        for(StringSnippet snippet : snippets) {
-            StringDecryptor.decrypt(snippet);
+        for(File smaliFile : files) {
+            System.out.println("Processing file " + smaliFile.getPath());
+            SmaliFileParser parser = new SmaliFileParser(smaliFile);
+            parser.process();
+            snippets.addAll(parser.snippets);
+            System.out.println("Snippets: " + snippets.size());
         }
+
+//        SmaliFileParser parser = new SmaliFileParser(new File("data/barclays-smali/p/ax.smali"));
+//        parser.process();
+//        snippets.addAll(parser.snippets);
+//        System.out.println("Snippets: " + snippets.size());
+
+//        for(StringSnippet snippet : snippets) {
+//            StringDecryptor.decrypt(snippet);
+//        }
 
 //        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
 //

@@ -18,6 +18,7 @@ public class StringSnippet {
     public ArrayList<String> stringStatements = new ArrayList<>();
     public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
     public int stringResultRegister = 0;
+    public boolean stringIsEncrypted = true;
 
     public StringSnippet(File file, Method method, int stringInitIndex) {
         this.file = file;
