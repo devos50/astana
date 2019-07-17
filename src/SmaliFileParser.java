@@ -30,7 +30,6 @@ public class SmaliFileParser {
             undefinedRegisters.addAll(path.registerDependencyGraph.undefinedRegisters);
 
             Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(snippet.stringResultRegister);
-            Set<RegisterDependencyNode> involvedRegisters = pair.getKey();
             boolean[] pathInvolvedStatements = pair.getValue();
 
             // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
@@ -50,11 +49,11 @@ public class SmaliFileParser {
         // we now check if there are undefined registers - if there are, create another dependency graph
         if(undefinedRegisters.size() > 0) {
             Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
-            for(MethodExecutionPath path : backwardPaths) {
-                path.buildRegisterDependencyGraph();
+            for(MethodExecutionPath backwardPath : backwardPaths) {
+                backwardPath.buildRegisterDependencyGraph();
                 // TODO check whether there are still undefined variables, if so, the string is not encrypted (dependency on parameter)!
                 for(Integer undefinedRegister : undefinedRegisters) {
-                    Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(undefinedRegister);
+                    Pair<Set<RegisterDependencyNode>, boolean[]> pair = backwardPath.computeInvolvedStatements(undefinedRegister);
                     boolean[] pathInvolvedStatements = pair.getValue();
                     for(int i = 0; i < pathInvolvedStatements.length; i++) {
                         involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
@@ -182,9 +181,9 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-            if(!methodNode.method.getName().equals("loadInterpolator")) {
-                continue;
-            }
+//            if(!methodNode.method.getName().equals("toString")) {
+//                continue;
+//            }
 
             System.out.println("Processing method: " + methodNode.method.getName());
             Method method = new Method(methodNode);
@@ -192,7 +191,7 @@ public class SmaliFileParser {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                    if(stringInitNode.value.toString().length() > 0) {
+                    if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("-T$")) {
                         System.out.println("Processing str: " + stringInitNode.value.toString());
                         StringSnippet snippet = new StringSnippet(smaliFile, method, stmtIndex);
                         Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(snippet);

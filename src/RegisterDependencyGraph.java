@@ -290,7 +290,8 @@ public class RegisterDependencyGraph {
                 // TODO ignore sparse switch for now!
             }
             else if(stmtNode instanceof PackedSwitchStmtNode) {
-                // TODO ignore switches for now!
+                PackedSwitchStmtNode packedSwitchStmtNode = (PackedSwitchStmtNode) stmtNode;
+                statementToRegister.get(currentStmtIndex).add(getActiveRegister(packedSwitchStmtNode.a));
             }
             else {
                 throw new RuntimeException("Unknown statement type when building dependency graph! " + stmtNode.toString() + ", " + stmtNode.op);
@@ -305,23 +306,17 @@ public class RegisterDependencyGraph {
             else if(currentStmtIndex == currentSection.endIndex - 1 && currentJumpIndex == methodExecutionPath.path.size()) {
                 break;
             }
-            else if(currentStmtIndex == currentSection.endIndex - 1 && currentJumpIndex < methodExecutionPath.path.size()) {
-                MethodSectionJump nextJump = methodExecutionPath.path.get(currentJumpIndex);
-                if(nextJump.jumpStmtIndex == -1) {
-                    // go to the catch
-                    currentStmtIndex = nextJump.toSection.beginIndex;
-                    currentSection = nextJump.toSection;
-                    currentJumpIndex++;
-                }
-                else {
-                    currentStmtIndex++;
-                }
-            }
             else if(currentJumpIndex < methodExecutionPath.path.size()) {
                 // are we at a point where we should jump?
                 MethodSectionJump nextJump = methodExecutionPath.path.get(currentJumpIndex);
                 if(currentStmtIndex == nextJump.jumpStmtIndex) {
                     // take it!
+                    currentStmtIndex = nextJump.toSection.beginIndex;
+                    currentSection = nextJump.toSection;
+                    currentJumpIndex++;
+                }
+                else if(nextJump.jumpStmtIndex == -1) {
+                    // go to the catch
                     currentStmtIndex = nextJump.toSection.beginIndex;
                     currentSection = nextJump.toSection;
                     currentJumpIndex++;

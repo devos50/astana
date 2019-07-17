@@ -2,10 +2,7 @@
 import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.TryCatchNode;
-import com.googlecode.d2j.node.insn.ConstStmtNode;
-import com.googlecode.d2j.node.insn.DexLabelStmtNode;
-import com.googlecode.d2j.node.insn.DexStmtNode;
-import com.googlecode.d2j.node.insn.JumpStmtNode;
+import com.googlecode.d2j.node.insn.*;
 import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
 
@@ -28,6 +25,10 @@ public class Method {
                 JumpStmtNode jumpNode = (JumpStmtNode) node;
                 jumpLabels.add(jumpNode.label);
             }
+            else if(node instanceof PackedSwitchStmtNode) {
+                PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) node;
+                jumpLabels.addAll(Arrays.asList(switchNode.labels));
+            }
         }
         if(this.methodNode.codeNode.tryStmts != null) {
             for(TryCatchNode tryCatchNode : this.methodNode.codeNode.tryStmts) {
@@ -49,10 +50,10 @@ public class Method {
         }
         methodNode.codeNode.stmts.removeAll(toRemove);
 
-        // create new sections if needed
+        // create new sections if needed (after jump statements or packed-switches)
         for(int currentIndex = 0; currentIndex < methodNode.codeNode.stmts.size(); currentIndex++) {
             DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentIndex);
-            if(currentNode instanceof JumpStmtNode && currentNode.op != Op.GOTO && currentNode.op != Op.GOTO_16 && currentNode.op != Op.GOTO_32) {
+            if((currentNode instanceof JumpStmtNode && currentNode.op != Op.GOTO && currentNode.op != Op.GOTO_16 && currentNode.op != Op.GOTO_32) || (currentNode instanceof PackedSwitchStmtNode)) {
                 if(currentIndex != methodNode.codeNode.stmts.size() - 1) {
                     DexStmtNode nextNode = methodNode.codeNode.stmts.get(currentIndex + 1);
                     if(!(nextNode instanceof DexLabelStmtNode)) {
@@ -80,7 +81,7 @@ public class Method {
             sections.add(beginSection);
         }
 
-
+        // make the section nodes
         for(int currentIndex = beginSection.endIndex; currentIndex < methodNode.codeNode.stmts.size(); currentIndex++) {
             DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentIndex);
             if(currentNode instanceof DexLabelStmtNode) {
@@ -89,6 +90,7 @@ public class Method {
             }
         }
 
+        // debugging
 //        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
 //            DexStmtNode node = methodNode.codeNode.stmts.get(i);
 //            if(node instanceof DexLabelStmtNode) {

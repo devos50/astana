@@ -35,17 +35,17 @@ public class Main {
 //            System.out.println("Snippets: " + snippets.size());
 //        }
 
-        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/androidx/vectordrawable/graphics/drawable/AnimationUtilsCompat.smali"));
+        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/wqqwqw.smali"));
         parser.process();
         snippets.addAll(parser.snippets);
         System.out.println("Snippets: " + snippets.size());
 
-//        for(StringSnippet snippet : snippets) {
-//            StringDecryptor.decrypt(snippet);
-//            if(snippet.decryptionSuccessful) {
-//                System.out.println("--> decrypted --> " + snippet.decryptedString);
-//            }
-//        }
+        for(StringSnippet snippet : snippets) {
+            StringDecryptor.decrypt(snippet);
+            if(snippet.decryptionSuccessful) {
+                System.out.println("--> decrypted --> " + snippet.decryptedString);
+            }
+        }
 
 //        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
 //

@@ -1,5 +1,6 @@
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
+import com.googlecode.d2j.node.insn.PackedSwitchStmtNode;
 import com.googlecode.d2j.reader.Op;
 import javafx.util.Pair;
 
@@ -76,7 +77,9 @@ public class MethodExecutionPath {
 
             int toSectionLabelStmtIndex = jump.toSection.beginIndex - 1;
             involvedStatements[toSectionLabelStmtIndex] = true;
-            involvedStatements[jump.jumpStmtIndex] = true;
+            if(method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex) instanceof JumpStmtNode) {
+                involvedStatements[jump.jumpStmtIndex] = true;
+            }
         }
 
         // perform a BFS from the destination statement, to the source statement
@@ -87,19 +90,24 @@ public class MethodExecutionPath {
 
         Set<RegisterDependencyNode> involvedRegisters = getDependenciesForRegister(rootNode);
 
-        // also include dependencies for conditional jumps
+        // also include dependencies for conditional jumps and packed switches
         for(MethodSectionJump jump : path) {
             if(jump.jumpStmtIndex == -1) { continue; }
 
-            DexStmtNode jumpStmtNode = method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex);
-            if(jumpStmtNode instanceof JumpStmtNode && jumpStmtNode.op != Op.GOTO && jumpStmtNode.op != Op.GOTO_16 && jumpStmtNode.op != Op.GOTO_32) {
+            DexStmtNode jumpNode = method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex);
+            if(jumpNode instanceof JumpStmtNode && jumpNode.op != Op.GOTO && jumpNode.op != Op.GOTO_16 && jumpNode.op != Op.GOTO_32) {
+                for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
+                    involvedRegisters.addAll(getDependenciesForRegister(node));
+                }
+            }
+            else if(jumpNode instanceof PackedSwitchStmtNode) {
                 for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
                     involvedRegisters.addAll(getDependenciesForRegister(node));
                 }
             }
         }
 
-        // get all statements that are involved
+        // get all statements that are involved and include the statements that influence them
         for(RegisterDependencyNode visitedNode : involvedRegisters) {
             for(int i = 0; i < registerDependencyGraph.statementToRegister.size(); i++) {
                 if(registerDependencyGraph.statementToRegister.get(i).contains(visitedNode)) {

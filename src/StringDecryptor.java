@@ -92,7 +92,7 @@ public class StringDecryptor {
         Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/barclays_original.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
+        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/lloyds_original.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
         String line = null;
         String finalString = "";
         try {

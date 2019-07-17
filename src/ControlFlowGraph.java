@@ -2,6 +2,7 @@ import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.TryCatchNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
+import com.googlecode.d2j.node.insn.PackedSwitchStmtNode;
 import com.googlecode.d2j.reader.Op;
 
 import java.util.*;
@@ -36,6 +37,20 @@ public class ControlFlowGraph {
                     MethodSectionJump jump = new MethodSectionJump(currentSection, jumpSection, stmtIndex);
                     if(!graph.adjacency.get(currentSection).contains(jump)) {
                         graph.adjacency.get(currentSection).add(jump);
+                    }
+                }
+                else if(stmtNode instanceof PackedSwitchStmtNode) {
+                    PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) stmtNode;
+                    for(DexLabel label : switchNode.labels) {
+                        MethodSection jumpSection = method.getSectionForLabel(label);
+                        if(jumpSection == null) {
+                            throw new RuntimeException("Cannot find section where jump to is made! (" + label + ")");
+                        }
+
+                        MethodSectionJump jump = new MethodSectionJump(currentSection, jumpSection, stmtIndex);
+                        if(!graph.adjacency.get(currentSection).contains(jump)) {
+                            graph.adjacency.get(currentSection).add(jump);
+                        }
                     }
                 }
             }
