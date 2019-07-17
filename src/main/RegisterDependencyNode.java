@@ -1,3 +1,5 @@
+package main;
+
 public class RegisterDependencyNode {
 
     private final int index;

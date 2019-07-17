@@ -1,3 +1,5 @@
+package main;
+
 import com.googlecode.d2j.node.DexClassNode;
 import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.*;
@@ -11,7 +13,7 @@ import java.util.*;
 public class SmaliFileParser {
 
     private final File smaliFile;
-    private DexClassNode rootNode;
+    public DexClassNode rootNode;
     public List<StringSnippet> snippets = new ArrayList<>();
 
     public SmaliFileParser(File smaliFile) {
@@ -164,15 +166,16 @@ public class SmaliFileParser {
         return new Pair<>(-1, -1);
     }
 
-    public void process() throws FileNotFoundException {
+    public void parseFile() throws FileNotFoundException {
         InputStream input = new FileInputStream(smaliFile);
         try {
             this.rootNode = Smali.smaliFile2Node("test.smali", input);
         } catch (Exception e) {
             System.out.println("Could not parse file " + smaliFile.getPath());
-            return;
         }
+    }
 
+    public void process() {
         if(rootNode.methods == null) {
             return;
         }

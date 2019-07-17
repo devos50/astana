@@ -1,3 +1,5 @@
+package main;
+
 public class MethodSectionType {
     public static int NORMAL = 0;
     public static int TRY_BLOCK = 1;

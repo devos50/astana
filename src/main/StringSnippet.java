@@ -1,3 +1,5 @@
+package main;
+
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.reader.Op;

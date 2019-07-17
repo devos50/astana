@@ -1,3 +1,5 @@
+package main;
+
 import com.googlecode.d2j.Field;
 import com.googlecode.d2j.Method;
 import com.googlecode.d2j.dex.Dex2jar;

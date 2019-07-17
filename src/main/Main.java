@@ -1,6 +1,5 @@
-import com.googlecode.d2j.node.insn.*;
-import javafx.util.Pair;
-import org.apache.commons.io.FileUtils;
+package main;
+
 import smile.clustering.HierarchicalClustering;
 import smile.clustering.linkage.WardLinkage;
 
@@ -29,13 +28,14 @@ public class Main {
 //
 //        for(File smaliFile : files) {
 //            System.out.println("Processing file " + smaliFile.getPath());
-//            SmaliFileParser parser = new SmaliFileParser(smaliFile);
+//            main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
 //            parser.process();
 //            snippets.addAll(parser.snippets);
 //            System.out.println("Snippets: " + snippets.size());
 //        }
 
         SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/mmmmnn.smali"));
+        parser.parseFile();
         parser.process();
         snippets.addAll(parser.snippets);
         System.out.println("Snippets: " + snippets.size());

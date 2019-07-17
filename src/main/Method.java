@@ -1,3 +1,4 @@
+package main;
 
 import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.DexMethodNode;
