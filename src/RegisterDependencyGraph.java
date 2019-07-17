@@ -302,11 +302,22 @@ public class RegisterDependencyGraph {
             if(currentStmtIndex == methodExecutionPath.destStmtIndex) {
                 break;
             }
-            else if(currentJumpIndex == methodExecutionPath.path.size() && currentStmtIndex == currentSection.endIndex - 1) {
+            else if(currentStmtIndex == currentSection.endIndex - 1 && currentJumpIndex == methodExecutionPath.path.size()) {
                 break;
             }
-
-            if(currentJumpIndex < methodExecutionPath.path.size()) {
+            else if(currentStmtIndex == currentSection.endIndex - 1 && currentJumpIndex < methodExecutionPath.path.size()) {
+                MethodSectionJump nextJump = methodExecutionPath.path.get(currentJumpIndex);
+                if(nextJump.jumpStmtIndex == -1) {
+                    // go to the catch
+                    currentStmtIndex = nextJump.toSection.beginIndex;
+                    currentSection = nextJump.toSection;
+                    currentJumpIndex++;
+                }
+                else {
+                    currentStmtIndex++;
+                }
+            }
+            else if(currentJumpIndex < methodExecutionPath.path.size()) {
                 // are we at a point where we should jump?
                 MethodSectionJump nextJump = methodExecutionPath.path.get(currentJumpIndex);
                 if(currentStmtIndex == nextJump.jumpStmtIndex) {

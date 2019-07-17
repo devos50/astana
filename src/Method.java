@@ -52,7 +52,7 @@ public class Method {
         // create new sections if needed
         for(int currentIndex = 0; currentIndex < methodNode.codeNode.stmts.size(); currentIndex++) {
             DexStmtNode currentNode = methodNode.codeNode.stmts.get(currentIndex);
-            if(currentNode instanceof JumpStmtNode && currentNode.op != Op.GOTO) {
+            if(currentNode instanceof JumpStmtNode && currentNode.op != Op.GOTO && currentNode.op != Op.GOTO_16 && currentNode.op != Op.GOTO_32) {
                 if(currentIndex != methodNode.codeNode.stmts.size() - 1) {
                     DexStmtNode nextNode = methodNode.codeNode.stmts.get(currentIndex + 1);
                     if(!(nextNode instanceof DexLabelStmtNode)) {
@@ -104,6 +104,23 @@ public class Method {
 //            }
 //        }
 
+        // classify try and catch blocks correctly
+        if(methodNode.codeNode.tryStmts != null) {
+            for(TryCatchNode tryCatchNode : methodNode.codeNode.tryStmts) {
+                MethodSection startSection = getSectionForLabel(tryCatchNode.start);
+                MethodSection endSection = getSectionForLabel(tryCatchNode.end);
+                Set<MethodSection> trySections = getSectionsRange(startSection, endSection);
+                for(MethodSection trySection : trySections) {
+                    trySection.sectionType = MethodSectionType.TRY_BLOCK;
+                }
+
+                for(DexLabel handler : tryCatchNode.handler) {
+                    MethodSection catchSection = getSectionForLabel(handler);
+                    catchSection.sectionType = MethodSectionType.CATCH_BLOCK;
+                }
+            }
+        }
+
         // build CFG
         controlFlowGraph = ControlFlowGraph.build(this);
     }
@@ -111,7 +128,6 @@ public class Method {
     public Set<MethodSection> getSectionsRange(MethodSection from, MethodSection to) {
         Set<MethodSection> sectionsList = new HashSet<>();
         sectionsList.add(from);
-        sectionsList.add(to);
 
         for(MethodSection section : sections) {
             if(section != from && section != to && section.beginIndex >= from.endIndex && section.endIndex <= to.beginIndex) {

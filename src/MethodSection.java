@@ -8,6 +8,7 @@ public class MethodSection {
     public DexLabel sectionLabel;
     public int beginIndex = -1;
     public int endIndex = -1;
+    public int sectionType = MethodSectionType.NORMAL;
 
     public MethodSection(DexMethodNode methodNode, DexLabel sectionLabel) {
         this.sectionLabel = sectionLabel;

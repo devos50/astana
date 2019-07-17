@@ -43,7 +43,9 @@ public class ControlFlowGraph {
             // can we go to the next section?
             if(sectionIndex != method.sections.size() - 1) {
                 DexStmtNode lastStmtNodeInSection = method.methodNode.codeNode.stmts.get(currentSection.endIndex - 1);
-                if(lastStmtNodeInSection.op != Op.THROW && lastStmtNodeInSection.op != Op.GOTO && lastStmtNodeInSection.op != Op.RETURN && lastStmtNodeInSection.op != Op.RETURN_OBJECT && lastStmtNodeInSection.op != Op.RETURN_VOID && lastStmtNodeInSection.op != Op.RETURN_WIDE) {
+                if(lastStmtNodeInSection.op != Op.THROW && lastStmtNodeInSection.op != Op.GOTO && lastStmtNodeInSection.op != Op.GOTO_16 &&
+                        lastStmtNodeInSection.op != Op.GOTO_32 && lastStmtNodeInSection.op != Op.RETURN && lastStmtNodeInSection.op != Op.RETURN_OBJECT &&
+                        lastStmtNodeInSection.op != Op.RETURN_VOID && lastStmtNodeInSection.op != Op.RETURN_WIDE) {
                     // we can indeed reach the next section from the current one
                     MethodSection nextSection = method.sections.get(sectionIndex + 1);
                     MethodSectionJump jump = new MethodSectionJump(currentSection, nextSection, currentSection.endIndex - 1);

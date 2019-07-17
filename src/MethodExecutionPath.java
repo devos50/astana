@@ -92,7 +92,7 @@ public class MethodExecutionPath {
             if(jump.jumpStmtIndex == -1) { continue; }
 
             DexStmtNode jumpStmtNode = method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex);
-            if(jumpStmtNode instanceof JumpStmtNode && jumpStmtNode.op != Op.GOTO) {
+            if(jumpStmtNode instanceof JumpStmtNode && jumpStmtNode.op != Op.GOTO && jumpStmtNode.op != Op.GOTO_16 && jumpStmtNode.op != Op.GOTO_32) {
                 for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
                     involvedRegisters.addAll(getDependenciesForRegister(node));
                 }

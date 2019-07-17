@@ -78,12 +78,13 @@ public class SmaliFileParser {
         }
     }
 
-    public Pair<Integer, Integer> isPotentialStringDecryption(DexMethodNode methodNode, int stmtIndex) {
-        DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
+    public Pair<Integer, Integer> isPotentialStringDecryption(Method method, int stringInitStmtIndex, int stmtIndex) {
+        DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
+        Pair<Integer, Integer> potentialStringDecryption = null;
         if(stmtNode.op == Op.INVOKE_DIRECT) {
             MethodStmtNode mnn = (MethodStmtNode) stmtNode;
             if(mnn.method.getName().equals("<init>") && mnn.method.getOwner().equals("Ljava/lang/String;")) {
-                return new Pair<>(stmtIndex, mnn.args[0]);
+                potentialStringDecryption = new Pair<>(stmtIndex, mnn.args[0]);
             }
         }
         else if(stmtNode.op == Op.INVOKE_STATIC) {
@@ -92,27 +93,38 @@ public class SmaliFileParser {
                 // get the next statement -> this should be a move-result-object
                 // skip possible jump statements
                 int offset = 1;
-                DexStmtNode nextStmtNode = methodNode.codeNode.stmts.get(stmtIndex + offset);
+                DexStmtNode nextStmtNode = method.methodNode.codeNode.stmts.get(stmtIndex + offset);
                 while(nextStmtNode.op == null) {
                     offset += 1;
-                    nextStmtNode = methodNode.codeNode.stmts.get(stmtIndex + offset);
+                    nextStmtNode = method.methodNode.codeNode.stmts.get(stmtIndex + offset);
                 }
 
                 if(nextStmtNode.op != Op.MOVE_RESULT_OBJECT) {
                     throw new RuntimeException("Next statement not move-result-object!");
                 }
                 Stmt1RNode castNode = (Stmt1RNode) nextStmtNode;
-                return new Pair<>(stmtIndex + 1, castNode.a);
+                potentialStringDecryption = new Pair<>(stmtIndex + 1, castNode.a);
             }
         }
-        return new Pair<>(-1, -1);
+
+        if(potentialStringDecryption == null) {
+            return new Pair<>(-1, -1);
+        }
+
+        MethodSection stringInitSection = method.getSectionForStatement(stringInitStmtIndex);
+        MethodSection stringDecryptSection = method.getSectionForStatement(stmtIndex);
+        if(stringInitSection.sectionType == MethodSectionType.TRY_BLOCK && stringDecryptSection.sectionType == MethodSectionType.CATCH_BLOCK) {
+            return new Pair<>(-1, -1);
+        }
+
+        return potentialStringDecryption;
     }
 
     public Pair<Integer, Integer> findPossibleStringDecryptionStatement(StringSnippet snippet) {
         // first, analyze the section, from the point where the string is declared
         MethodSection rootSection = snippet.method.getSectionForStatement(snippet.stringInitIndex);
         for(int stmtIndex = snippet.stringInitIndex + 1; stmtIndex < rootSection.endIndex; stmtIndex++) {
-            Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method.methodNode, stmtIndex);
+            Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method, snippet.stringInitIndex, stmtIndex);
             if(pair.getKey() != -1) {
                 return pair;
             }
@@ -139,7 +151,7 @@ public class SmaliFileParser {
                 MethodSection adjacentSection = jump.toSection;
                 if(!visited.contains(adjacentSection)) {
                     for(int stmtIndex = adjacentSection.beginIndex; stmtIndex < adjacentSection.endIndex; stmtIndex++) {
-                        Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method.methodNode, stmtIndex);
+                        Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method, snippet.stringInitIndex, stmtIndex);
                         if(pair.getKey() != -1) {
                             return pair;
                         }
@@ -170,9 +182,9 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("onHandleIntent")) {
-//                continue;
-//            }
+            if(!methodNode.method.getName().equals("loadInterpolator")) {
+                continue;
+            }
 
             System.out.println("Processing method: " + methodNode.method.getName());
             Method method = new Method(methodNode);
