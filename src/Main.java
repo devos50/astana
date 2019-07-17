@@ -35,7 +35,7 @@ public class Main {
 //            System.out.println("Snippets: " + snippets.size());
 //        }
 
-        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/wqqwqw.smali"));
+        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/mmmmnn.smali"));
         parser.process();
         snippets.addAll(parser.snippets);
         System.out.println("Snippets: " + snippets.size());

@@ -191,7 +191,7 @@ public class SmaliFileParser {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                    if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("-T$")) {
+                    if(stringInitNode.value.toString().length() > 0) {
                         System.out.println("Processing str: " + stringInitNode.value.toString());
                         StringSnippet snippet = new StringSnippet(smaliFile, method, stmtIndex);
                         Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(snippet);
