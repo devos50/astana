@@ -35,27 +35,6 @@ public class MethodExecutionPath {
         this.registerDependencyGraph.build();
     }
 
-    public Set<RegisterDependencyNode> getDependenciesForRegister(RegisterDependencyNode rootNode) {
-        Set<RegisterDependencyNode> visited = new HashSet<>();
-        LinkedList<RegisterDependencyNode> queue = new LinkedList<>();
-        visited.add(rootNode);
-        queue.add(rootNode);
-
-        while(!queue.isEmpty()) {
-            RegisterDependencyNode currentNode = queue.remove();
-            List<RegisterDependencyNode> adjacent = registerDependencyGraph.adjacency.get(currentNode);
-
-            for(RegisterDependencyNode adjacentNode : adjacent) {
-                if(!visited.contains(adjacentNode)) {
-                    visited.add(adjacentNode);
-                    queue.add(adjacentNode);
-                }
-            }
-        }
-
-        return visited;
-    }
-
     public Pair<Set<RegisterDependencyNode>, boolean[]> computeInvolvedStatements(int stringResultRegister) {
         if(this.registerDependencyGraph == null) {
             throw new RuntimeException("register dependency graph should be computed first!");
@@ -90,7 +69,7 @@ public class MethodExecutionPath {
             return new Pair<>(new HashSet<>(), new boolean[this.method.methodNode.codeNode.stmts.size()]);
         }
 
-        Set<RegisterDependencyNode> involvedRegisters = getDependenciesForRegister(rootNode);
+        Set<RegisterDependencyNode> involvedRegisters = registerDependencyGraph.getDependencies(rootNode);
 
         // also include dependencies for conditional jumps and packed switches
         for(MethodSectionJump jump : path) {
@@ -99,12 +78,12 @@ public class MethodExecutionPath {
             DexStmtNode jumpNode = method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex);
             if(jumpNode instanceof JumpStmtNode && jumpNode.op != Op.GOTO && jumpNode.op != Op.GOTO_16 && jumpNode.op != Op.GOTO_32) {
                 for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
-                    involvedRegisters.addAll(getDependenciesForRegister(node));
+                    involvedRegisters.addAll(registerDependencyGraph.getDependencies(node));
                 }
             }
             else if(jumpNode instanceof PackedSwitchStmtNode) {
                 for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
-                    involvedRegisters.addAll(getDependenciesForRegister(node));
+                    involvedRegisters.addAll(registerDependencyGraph.getDependencies(node));
                 }
             }
         }

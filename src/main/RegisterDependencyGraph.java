@@ -67,11 +67,11 @@ public class RegisterDependencyGraph {
         return node;
     }
 
-    public boolean hasDependency(RegisterDependencyNode source, RegisterDependencyNode dest) {
+    public Set<RegisterDependencyNode> getDependencies(RegisterDependencyNode rootNode) {
         Set<RegisterDependencyNode> visited = new HashSet<>();
         LinkedList<RegisterDependencyNode> queue = new LinkedList<>();
-        visited.add(source);
-        queue.add(source);
+        visited.add(rootNode);
+        queue.add(rootNode);
 
         while(!queue.isEmpty()) {
             RegisterDependencyNode currentNode = queue.remove();
@@ -85,7 +85,11 @@ public class RegisterDependencyGraph {
             }
         }
 
-        return visited.contains(dest);
+        return visited;
+    }
+
+    public boolean hasDependency(RegisterDependencyNode source, RegisterDependencyNode dest) {
+        return getDependencies(source).contains(dest);
     }
 
     public void build() {
@@ -128,6 +132,9 @@ public class RegisterDependencyGraph {
                         }
                     }
                 }
+            }
+            else if(stmtNode.op == Op.MOVE_EXCEPTION) {
+                // TODO ignore move-exception for now!
             }
             else if(stmtNode.op == Op.MOVE_RESULT || stmtNode.op == Op.MOVE_RESULT_OBJECT || stmtNode.op == Op.MOVE_RESULT_WIDE) {
                 // we store the result from a method call, create dependencies

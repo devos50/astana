@@ -29,7 +29,13 @@ public class SmaliFileParser {
         Set<Integer> undefinedRegisters = new HashSet<>();
         for(MethodExecutionPath path : stringPaths) {
             path.buildRegisterDependencyGraph();
-            undefinedRegisters.addAll(path.registerDependencyGraph.undefinedRegisters);
+            RegisterDependencyNode rootNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
+            Set<RegisterDependencyNode> dependencies = path.registerDependencyGraph.getDependencies(rootNode);
+            for(Integer undefinedRegister : path.registerDependencyGraph.undefinedRegisters) {
+                if(dependencies.contains(new RegisterDependencyNode(undefinedRegister, 0))) {
+                    undefinedRegisters.add(undefinedRegister);
+                }
+            }
 
             Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(snippet.stringResultRegister);
             boolean[] pathInvolvedStatements = pair.getValue();
@@ -53,7 +59,7 @@ public class SmaliFileParser {
             Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
             for(MethodExecutionPath backwardPath : backwardPaths) {
                 backwardPath.buildRegisterDependencyGraph();
-                // TODO check whether there are still undefined variables, if so, the string is not encrypted (dependency on parameter)!
+                // TODO check whether there are still undefined variables, if so, the string is probably not encrypted (dependency on parameter)!
                 for(Integer undefinedRegister : undefinedRegisters) {
                     Pair<Set<RegisterDependencyNode>, boolean[]> pair = backwardPath.computeInvolvedStatements(undefinedRegister);
                     boolean[] pathInvolvedStatements = pair.getValue();
