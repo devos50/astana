@@ -184,7 +184,9 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.INT_TO_LONG || stmtNode.op == Op.INT_TO_DOUBLE || stmtNode.op == Op.LONG_TO_DOUBLE ||
                     stmtNode.op == Op.DOUBLE_TO_INT || stmtNode.op == Op.INT_TO_FLOAT || stmtNode.op == Op.INT_TO_CHAR ||
                     stmtNode.op == Op.INT_TO_SHORT || stmtNode.op == Op.FLOAT_TO_DOUBLE || stmtNode.op == Op.LONG_TO_INT ||
-                    stmtNode.op == Op.LONG_TO_FLOAT || stmtNode.op == Op.INT_TO_BYTE) {
+                    stmtNode.op == Op.LONG_TO_FLOAT || stmtNode.op == Op.INT_TO_BYTE || stmtNode.op == Op.NEG_LONG ||
+                    stmtNode.op == Op.NEG_DOUBLE || stmtNode.op == Op.NEG_FLOAT || stmtNode.op == Op.NEG_INT || stmtNode.op == Op.DOUBLE_TO_LONG ||
+                    stmtNode.op == Op.DOUBLE_TO_FLOAT) {
                 Stmt2RNode castNode = (Stmt2RNode) stmtNode;
                 RegisterDependencyNode dependencyRegister = getActiveRegister(castNode.b);
                 RegisterDependencyNode newRegister = makeNewRegister(castNode.a);
@@ -228,7 +230,7 @@ public class RegisterDependencyGraph {
                 statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.b));
             }
             else if(stmtNode.op == Op.AGET_WIDE || stmtNode.op == Op.AGET || stmtNode.op == Op.AGET_BOOLEAN ||
-                    stmtNode.op == Op.AGET_OBJECT || stmtNode.op == Op.AGET_BYTE) {
+                    stmtNode.op == Op.AGET_OBJECT || stmtNode.op == Op.AGET_BYTE || stmtNode.op == Op.AGET_CHAR) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.a), getActiveRegister(castNode.b));
                 statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.a));
@@ -244,7 +246,8 @@ public class RegisterDependencyGraph {
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
             else if(stmtNode.op == Op.SUB_INT || stmtNode.op == Op.DIV_DOUBLE || stmtNode.op == Op.MUL_INT || stmtNode.op == Op.SUB_LONG || stmtNode.op == Op.MUL_DOUBLE ||
-                    stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT || stmtNode.op == Op.AND_INT || stmtNode.op == Op.XOR_INT || stmtNode.op == Op.REM_INT) {
+                    stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT || stmtNode.op == Op.AND_INT || stmtNode.op == Op.XOR_INT || stmtNode.op == Op.REM_INT ||
+                    stmtNode.op == Op.SHR_LONG || stmtNode.op == Op.DIV_INT || stmtNode.op == Op.SUB_DOUBLE || stmtNode.op == Op.SHL_INT) {
                 Stmt3RNode castStmtNode = (Stmt3RNode) stmtNode;
                 RegisterDependencyNode oldRegisterA = getActiveRegister(castStmtNode.b);
                 RegisterDependencyNode oldRegisterB = getActiveRegister(castStmtNode.c);
@@ -257,7 +260,7 @@ public class RegisterDependencyGraph {
                     stmtNode.op == Op.AND_INT_2ADDR || stmtNode.op == Op.SUB_LONG_2ADDR || stmtNode.op == Op.ADD_LONG_2ADDR || stmtNode.op == Op.DIV_DOUBLE_2ADDR ||
                     stmtNode.op == Op.DIV_FLOAT_2ADDR || stmtNode.op == Op.DIV_INT_2ADDR || stmtNode.op == Op.SHR_INT_2ADDR || stmtNode.op == Op.OR_INT_2ADDR ||
                     stmtNode.op == Op.XOR_INT_2ADDR || stmtNode.op == Op.SUB_INT_2ADDR || stmtNode.op == Op.MUL_LONG_2ADDR || stmtNode.op == Op.AND_LONG_2ADDR ||
-                    stmtNode.op == Op.DIV_LONG_2ADDR) {
+                    stmtNode.op == Op.DIV_LONG_2ADDR || stmtNode.op == Op.SHR_LONG_2ADDR || stmtNode.op == Op.MUL_DOUBLE_2ADDR || stmtNode.op == Op.SUB_DOUBLE_2ADDR) {
                 Stmt2RNode castStmtNode = (Stmt2RNode) stmtNode;
 
                 RegisterDependencyNode oldRegister = getActiveRegister(castStmtNode.a);
@@ -269,7 +272,8 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.XOR_INT_LIT8 || stmtNode.op == Op.ADD_INT_LIT8 || stmtNode.op == Op.MUL_INT_LIT16 ||
                     stmtNode.op == Op.SHL_INT_LIT8 || stmtNode.op == Op.MUL_INT_LIT8 || stmtNode.op == Op.AND_INT_LIT16 ||
                     stmtNode.op == Op.DIV_INT_LIT8 || stmtNode.op == Op.ADD_INT_LIT16 || stmtNode.op == Op.SHR_INT_LIT8 ||
-                    stmtNode.op == Op.AND_INT_LIT8 || stmtNode.op == Op.RSUB_INT_LIT8 || stmtNode.op == Op.REM_INT_LIT8) {
+                    stmtNode.op == Op.AND_INT_LIT8 || stmtNode.op == Op.RSUB_INT_LIT8 || stmtNode.op == Op.REM_INT_LIT8 ||
+                    stmtNode.op == Op.DIV_INT_LIT16) {
                 Stmt2R1NNode castStmtNode = (Stmt2R1NNode) stmtNode;
                 RegisterDependencyNode oldRegisterSrc = getActiveRegister(castStmtNode.srcReg);
                 RegisterDependencyNode newRegister = makeNewRegister(castStmtNode.distReg);
@@ -307,8 +311,7 @@ public class RegisterDependencyGraph {
                 // TODO ignore sparse switch for now!
             }
             else if(stmtNode instanceof PackedSwitchStmtNode) {
-                PackedSwitchStmtNode packedSwitchStmtNode = (PackedSwitchStmtNode) stmtNode;
-                statementToRegister.get(currentStmtIndex).add(getActiveRegister(packedSwitchStmtNode.a));
+                // TODO ignore packed switches for now!
             }
             else {
                 throw new RuntimeException("Unknown statement type when building dependency graph! " + stmtNode.toString() + ", " + stmtNode.op);

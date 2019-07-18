@@ -59,7 +59,8 @@ public class MethodExecutionPath {
 
                 int toSectionLabelStmtIndex = jump.toSection.beginIndex - 1;
                 involvedStatements[toSectionLabelStmtIndex] = true;
-                if(method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex) instanceof JumpStmtNode) {
+                if(method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex) instanceof JumpStmtNode ||
+                        method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex) instanceof PackedSwitchStmtNode) {
                     involvedStatements[jump.jumpStmtIndex] = true;
                 }
             }

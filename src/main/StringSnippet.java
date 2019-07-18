@@ -44,7 +44,11 @@ public class StringSnippet {
     }
 
     public void finalize() {
-        // finalize the snippet by computing the frequency map
+        // finalize the snippet, first make sure the string declaration is the first statement in the snippet
+        extractedStatements.remove(stringInitNode);
+        extractedStatements.add(0, stringInitNode);
+
+        // compute the frequency map
         for(int i = 0; i < extractedStatements.size(); i++) {
             DexStmtNode node = extractedStatements.get(i);
             if(i != extractedStatements.size() - 1) {

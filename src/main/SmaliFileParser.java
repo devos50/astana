@@ -25,6 +25,12 @@ public class SmaliFileParser {
         Set<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
         List<Set<RegisterDependencyNode>> dependencySets = new ArrayList<>();
 
+        if(stringPaths.size() == 0) {
+            snippet.stringIsEncrypted = false;
+            snippet.finalize();
+            return;
+        }
+
         // build register dependency graphs and compute involved statements
         boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
         Set<Integer> undefinedRegisters = new HashSet<>();
@@ -45,7 +51,8 @@ public class SmaliFileParser {
             RegisterDependencyNode sourceNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
             if(!path.registerDependencyGraph.hasDependency(sourceNode, destNode)) {
                 snippet.stringIsEncrypted = false;
-                break;
+                snippet.finalize();
+                return;
             }
         }
 
@@ -87,7 +94,8 @@ public class SmaliFileParser {
                     for(Integer undefinedRegister2 : backwardPath.registerDependencyGraph.undefinedRegisters) {
                         if(dependencies.contains(new RegisterDependencyNode(undefinedRegister2, 0))) {
                             snippet.stringIsEncrypted = false;
-                            break;
+                            snippet.finalize();
+                            return;
                         }
                     }
                 }
@@ -120,7 +128,6 @@ public class SmaliFileParser {
 
         for(int i = 0; i < involvedStatements.length; i++) {
             DexStmtNode stmtNode = snippet.method.methodNode.codeNode.stmts.get(i);
-//            System.out.println(stmtNode.op + " (" + involvedStatements[i] + ")");
             if(involvedStatements[i]) {
                 snippet.extractedStatements.add(stmtNode);
             }
@@ -147,18 +154,20 @@ public class SmaliFileParser {
             if(mnn.method.getReturnType().equals("Ljava/lang/String;") && mnn.args.length > 0) {
                 // get the next statement -> this should be a move-result-object
                 // skip possible jump statements
-                int offset = 1;
-                DexStmtNode nextStmtNode = method.methodNode.codeNode.stmts.get(stmtIndex + offset);
-                while(nextStmtNode.op == null) {
-                    offset += 1;
-                    nextStmtNode = method.methodNode.codeNode.stmts.get(stmtIndex + offset);
+                int currentStmtIndex = stmtIndex + 1;
+                DexStmtNode nextStmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+                while(nextStmtNode.op != Op.MOVE_RESULT_OBJECT && currentStmtIndex < method.methodNode.codeNode.stmts.size()) {
+                    currentStmtIndex += 1;
+                    if(currentStmtIndex < method.methodNode.codeNode.stmts.size()) {
+                        nextStmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+                    }
                 }
 
                 if(nextStmtNode.op != Op.MOVE_RESULT_OBJECT) {
-                    throw new RuntimeException("Next statement not move-result-object!");
+                    return new Pair<>(-1, -1);
                 }
                 Stmt1RNode castNode = (Stmt1RNode) nextStmtNode;
-                potentialStringDecryption = new Pair<>(stmtIndex + 1, castNode.a);
+                potentialStringDecryption = new Pair<>(currentStmtIndex, castNode.a);
             }
         }
 
@@ -230,7 +239,7 @@ public class SmaliFileParser {
     }
 
     public void process() {
-        if(rootNode.methods == null) {
+        if(rootNode == null || rootNode.methods == null) {
             return;
         }
 
@@ -238,18 +247,18 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("toString")) {
+//            if(!methodNode.method.getName().equals("b")) {
 //                continue;
 //            }
 
-            System.out.println("Processing method: " + methodNode.method.getName());
+//            System.out.println("Processing method: " + methodNode.method.getName());
             Method method = new Method(methodNode);
             for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
                     if(stringInitNode.value.toString().length() > 0) {
-                        System.out.println("Processing str: " + stringInitNode.value.toString());
+//                        System.out.println("Processing str: " + stringInitNode.value.toString());
                         StringSnippet snippet = new StringSnippet(smaliFile, method, stmtIndex);
                         Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(snippet);
                         if(pair.getKey() != -1) {
