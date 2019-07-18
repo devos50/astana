@@ -23,6 +23,7 @@ public class SmaliFileParser {
     public void processSnippet(StringSnippet snippet) {
         // find all possible paths from the string declaration to the point where the string is decrypted
         Set<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
+        List<Set<RegisterDependencyNode>> dependencySets = new ArrayList<>();
 
         // build register dependency graphs and compute involved statements
         boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
@@ -31,14 +32,12 @@ public class SmaliFileParser {
             path.buildRegisterDependencyGraph();
             RegisterDependencyNode rootNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
             Set<RegisterDependencyNode> dependencies = path.registerDependencyGraph.getDependencies(rootNode);
+            dependencySets.add(dependencies);
             for(Integer undefinedRegister : path.registerDependencyGraph.undefinedRegisters) {
                 if(dependencies.contains(new RegisterDependencyNode(undefinedRegister, 0))) {
                     undefinedRegisters.add(undefinedRegister);
                 }
             }
-
-            Pair<Set<RegisterDependencyNode>, boolean[]> pair = path.computeInvolvedStatements(snippet.stringResultRegister);
-            boolean[] pathInvolvedStatements = pair.getValue();
 
             // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
             ConstStmtNode stringInitNode = (ConstStmtNode) snippet.method.methodNode.codeNode.stmts.get(snippet.stringInitIndex);
@@ -48,7 +47,25 @@ public class SmaliFileParser {
                 snippet.stringIsEncrypted = false;
                 break;
             }
+        }
 
+        // test whether the dependency sets are the same, if so, jumps do not matter and we can exclude them
+        boolean areEqual = true;
+        for(int i = 0; i < dependencySets.size() - 1; i++) {
+            if(!dependencySets.get(i).equals(dependencySets.get(i + 1))) {
+                areEqual = false;
+                break;
+            }
+        }
+
+        boolean includeJumps = true;
+        if(areEqual) {
+            includeJumps = false;
+        }
+
+        // compute involved statements
+        for(MethodExecutionPath path : stringPaths) {
+            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(snippet.stringResultRegister, includeJumps);
             for(int i = 0; i < pathInvolvedStatements.length; i++) {
                 involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
             }
@@ -57,12 +74,43 @@ public class SmaliFileParser {
         // we now check if there are undefined registers - if there are, create another dependency graph
         if(undefinedRegisters.size() > 0) {
             Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
+            dependencySets = new ArrayList<>();
             for(MethodExecutionPath backwardPath : backwardPaths) {
+                Set<RegisterDependencyNode> dependenciesForPath = new HashSet<>();
                 backwardPath.buildRegisterDependencyGraph();
-                // TODO check whether there are still undefined variables, if so, the string is probably not encrypted (dependency on parameter)!
                 for(Integer undefinedRegister : undefinedRegisters) {
-                    Pair<Set<RegisterDependencyNode>, boolean[]> pair = backwardPath.computeInvolvedStatements(undefinedRegister);
-                    boolean[] pathInvolvedStatements = pair.getValue();
+                    RegisterDependencyNode rootNode = backwardPath.registerDependencyGraph.activeRegister.get(undefinedRegister);
+                    Set<RegisterDependencyNode> dependencies = backwardPath.registerDependencyGraph.getDependencies(rootNode);
+                    dependenciesForPath.addAll(dependencies);
+
+                    // if this undefined register depends on another undefined register, the string is probably not encrypted
+                    for(Integer undefinedRegister2 : backwardPath.registerDependencyGraph.undefinedRegisters) {
+                        if(dependencies.contains(new RegisterDependencyNode(undefinedRegister2, 0))) {
+                            snippet.stringIsEncrypted = false;
+                            break;
+                        }
+                    }
+                }
+                dependencySets.add(dependenciesForPath);
+            }
+
+            // test whether the dependency sets are the same, if so, jumps do not matter and we can exclude them
+            areEqual = true;
+            for(int i = 0; i < dependencySets.size() - 1; i++) {
+                if(!dependencySets.get(i).equals(dependencySets.get(i + 1))) {
+                    areEqual = false;
+                    break;
+                }
+            }
+
+            includeJumps = true;
+            if(areEqual) {
+                includeJumps = false;
+            }
+
+            for(MethodExecutionPath backwardPath : backwardPaths) {
+                for(Integer undefinedRegister : undefinedRegisters) {
+                    boolean[] pathInvolvedStatements = backwardPath.computeInvolvedStatements(undefinedRegister, includeJumps);
                     for(int i = 0; i < pathInvolvedStatements.length; i++) {
                         involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
                     }

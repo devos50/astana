@@ -76,6 +76,7 @@ public class RegisterDependencyGraph {
         while(!queue.isEmpty()) {
             RegisterDependencyNode currentNode = queue.remove();
             List<RegisterDependencyNode> adjacent = adjacency.get(currentNode);
+            if(adjacent == null) { continue; }
 
             for(RegisterDependencyNode adjacentNode : adjacent) {
                 if(!visited.contains(adjacentNode)) {
@@ -110,10 +111,6 @@ public class RegisterDependencyGraph {
             else if(stmtNode instanceof MethodStmtNode) {
                 // ignore for now, instead, process the move-result statement instead
                 MethodStmtNode mnn = (MethodStmtNode) stmtNode;
-
-                for(int arg : mnn.args) {
-                    statementToRegister.get(currentStmtIndex).add(getActiveRegister(arg));
-                }
 
                 // there is one edge case though: where we have an invoke-direct on a string. We should actually consider this one since there is no subsequent move statement
                 if(stmtNode.op == Op.INVOKE_DIRECT) {
@@ -197,8 +194,9 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.MOVE || stmtNode.op == Op.MOVE_OBJECT || stmtNode.op == Op.MOVE_OBJECT_FROM16 ||
                     stmtNode.op == Op.MOVE_WIDE || stmtNode.op == Op.MOVE_WIDE_FROM16 || stmtNode.op == Op.MOVE_FROM16) {
                 Stmt2RNode castNode = (Stmt2RNode) stmtNode;
-                makeDependency(getActiveRegister(castNode.a), getActiveRegister(castNode.b));
-                statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.a));
+                RegisterDependencyNode newRegister = makeNewRegister(castNode.a);
+                makeDependency(newRegister, getActiveRegister(castNode.b));
+                statementToRegister.get(currentStmtIndex).add(newRegister);
             }
             else if(stmtNode.op == Op.SGET || stmtNode.op == Op.SGET_BOOLEAN || stmtNode.op == Op.SGET_OBJECT) {
                 // we are getting a field which is stored in a new register

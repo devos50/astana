@@ -1,5 +1,6 @@
 package main;
 
+import org.apache.commons.io.FileUtils;
 import smile.clustering.HierarchicalClustering;
 import smile.clustering.linkage.WardLinkage;
 
@@ -29,6 +30,7 @@ public class Main {
 //        for(File smaliFile : files) {
 //            System.out.println("Processing file " + smaliFile.getPath());
 //            main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
+//            parser.parseFile();
 //            parser.process();
 //            snippets.addAll(parser.snippets);
 //            System.out.println("Snippets: " + snippets.size());
