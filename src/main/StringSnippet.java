@@ -34,13 +34,22 @@ public class StringSnippet {
     }
 
     public List<String> getPrintableStatements() {
+        List<DexStmtNode> statements = getPrunedStatementsList();
         List<String> stringStatements = new ArrayList<>();
-        for(int stmtIndex = 0; stmtIndex < extractedStatements.size(); stmtIndex++) {
-            if(extractedStatements.get(stmtIndex).op != null) {
-                stringStatements.add(extractedStatements.get(stmtIndex).op.toString());
-            }
+        for(int stmtIndex = 0; stmtIndex < statements.size(); stmtIndex++) {
+            stringStatements.add(statements.get(stmtIndex).op.toString());
         }
         return stringStatements;
+    }
+
+    public List<DexStmtNode> getPrunedStatementsList() {
+        List<DexStmtNode> statements = new ArrayList<>();
+        for(int stmtIndex = 0; stmtIndex < extractedStatements.size(); stmtIndex++) {
+            if(extractedStatements.get(stmtIndex).op != null) {
+                statements.add(extractedStatements.get(stmtIndex));
+            }
+        }
+        return statements;
     }
 
     public void finalize() {

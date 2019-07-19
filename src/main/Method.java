@@ -186,7 +186,7 @@ public class Method {
                 if(!currentPath.path.contains(jump)) {
 
                     // can we even make the jump?
-                    if(currentNode == sourceSection && sourceStmtIndex > jump.jumpStmtIndex) {
+                    if(currentNode == sourceSection && jump.jumpStmtIndex != -1 && sourceStmtIndex > jump.jumpStmtIndex) {
                         continue;
                     }
 

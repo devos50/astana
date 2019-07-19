@@ -133,12 +133,13 @@ public class SmaliFileParser {
             }
         }
 
+        snippet.finalize();
+
         // we check whether the snippet is not "too basic", i.e., it is not just the creation of a new string based on our encrypted string
-        if(snippet.extractedStatements.size() == 3 && snippet.extractedStatements.get(1).op == Op.NEW_INSTANCE && snippet.extractedStatements.get(2).op == Op.INVOKE_DIRECT) {
+        List<DexStmtNode> prunedStatements = snippet.getPrunedStatementsList();
+        if(prunedStatements.size() == 3 && prunedStatements.get(1).op == Op.NEW_INSTANCE && prunedStatements.get(2).op == Op.INVOKE_DIRECT) {
             snippet.stringIsEncrypted = false;
         }
-
-        snippet.finalize();
 
         if(snippet.stringIsEncrypted) {
             snippets.add(snippet);
@@ -156,7 +157,7 @@ public class SmaliFileParser {
         }
         else if(stmtNode.op == Op.INVOKE_STATIC) {
             MethodStmtNode mnn = (MethodStmtNode) stmtNode;
-            if(mnn.method.getReturnType().equals("Ljava/lang/String;") && mnn.args.length > 0) {
+            if(mnn.method.getReturnType().equals("Ljava/lang/String;") && mnn.args.length > 0 && !mnn.method.getOwner().equals("Ljava/lang/String;")) {
                 // get the next statement -> this should be a move-result-object
                 // skip possible jump statements
                 int currentStmtIndex = stmtIndex + 1;
@@ -252,7 +253,7 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("b043F043Fп043F043Fп043F043Fп043F")) {
+//            if(!methodNode.method.getName().equals("instantiate")) {
 //                continue;
 //            }
 

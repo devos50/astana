@@ -17,21 +17,21 @@ public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
 
     public static void main(String[] args) throws IOException {
-        File jarFile = new File("data/halifax.jar");
-        if(!jarFile.exists()) {
-            // convert APK to .jar in order to run smali code
-            new Dex2jarCmd().doMain("data/halifax.apk", "-o", "data/halifax.jar", "-n");
-        }
+//        File jarFile = new File("data/halifax.jar");
+//        if(!jarFile.exists()) {
+//            // convert APK to .jar in order to run smali code
+//            new Dex2jarCmd().doMain("data/halifax.apk", "-o", "data/halifax.jar", "-n");
+//        }
+//
+//        File smaliFilesPath = new File("data/halifax-smali");
+//        if(!smaliFilesPath.exists()) {
+//            // convert APK to smali files
+//            new BaksmaliCmd().doMain("data/halifax.apk", "-o", "data/halifax-smali");
+//        }
 
-        File smaliFilesPath = new File("data/halifax-smali");
-        if(!smaliFilesPath.exists()) {
-            // convert APK to smali files
-            new BaksmaliCmd().doMain("data/halifax.apk", "-o", "data/halifax-smali");
-        }
-
-        File analyzePath = new File("data/halifax-smali");
+        File analyzePath = new File("data/lloyds-smali");
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-            if(!smaliFile.getPath().startsWith("data/halifax-smali/android")) {
+            if(!smaliFile.getPath().startsWith("data/lloyds-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
                 parser.parseFile();
@@ -42,11 +42,9 @@ public class Main {
             }
         }
 
-//        System.out.println("Number of smali files: " + files.size());
-
         System.out.println("Snippets: " + snippets.size());
 
-//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/vyvyyy.smali"));
+//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/com/google/android/gms/dynamite/DynamiteModule.smali"));
 //        parser.parseFile();
 //        parser.process();
 //        snippets.addAll(parser.snippets);
