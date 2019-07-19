@@ -249,8 +249,7 @@ public class RegisterDependencyGraph {
                 statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.a));
             }
             else if(stmtNode.op == Op.SPUT || stmtNode.op == Op.SPUT_OBJECT || stmtNode.op == Op.SPUT_WIDE || stmtNode.op == Op.SPUT_BOOLEAN) {
-                FieldStmtNode fieldStmtNode = (FieldStmtNode) stmtNode;
-                statementToRegister.get(currentStmtIndex).add(getActiveRegister(fieldStmtNode.a));
+                // TODO ignore sput for now
             }
             else if(stmtNode.op == Op.ARRAY_LENGTH) {
                 Stmt2RNode castNode = (Stmt2RNode) stmtNode;

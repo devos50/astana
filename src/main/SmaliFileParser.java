@@ -247,7 +247,7 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("newInstance")) {
+//            if(!methodNode.method.getName().equals("b043F043Fп043F043Fп043F043Fп043F")) {
 //                continue;
 //            }
 

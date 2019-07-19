@@ -36,7 +36,7 @@ public class Main {
         }
         System.out.println("Snippets: " + snippets.size());
 
-//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/com/mobile/ui/paymenthub/fragment/PaymentHubAddUkNumberFragment.smali"));
+//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/vyvyyy.smali"));
 //        parser.parseFile();
 //        parser.process();
 //        snippets.addAll(parser.snippets);
