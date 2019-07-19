@@ -133,6 +133,11 @@ public class SmaliFileParser {
             }
         }
 
+        // we check whether the snippet is not "too basic", i.e., it is not just the creation of a new string based on our encrypted string
+        if(snippet.extractedStatements.size() == 3 && snippet.extractedStatements.get(1).op == Op.NEW_INSTANCE && snippet.extractedStatements.get(2).op == Op.INVOKE_DIRECT) {
+            snippet.stringIsEncrypted = false;
+        }
+
         snippet.finalize();
 
         if(snippet.stringIsEncrypted) {

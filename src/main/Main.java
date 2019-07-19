@@ -23,7 +23,7 @@ public class Main {
 //            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
 //        }
 
-        File analyzePath = new File("data/lloyds-smali");
+        File analyzePath = new File("data/monzo-smali");
         List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
         System.out.println("Number of smali files: " + files.size());
 
