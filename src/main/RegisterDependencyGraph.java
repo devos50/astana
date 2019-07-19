@@ -89,6 +89,19 @@ public class RegisterDependencyGraph {
         return visited;
     }
 
+    public Set<Integer> getInvolvedStatementsForNode(RegisterDependencyNode rootNode) {
+        Set<RegisterDependencyNode> dependencies = getDependencies(rootNode);
+        Set<Integer> involvedStatements = new HashSet<>();
+        for(RegisterDependencyNode dependency : dependencies) {
+            for(int stmtIndex = 0; stmtIndex < statementToRegister.size(); stmtIndex++) {
+                if(statementToRegister.get(stmtIndex).contains(dependency)) {
+                    involvedStatements.add(stmtIndex);
+                }
+            }
+        }
+        return involvedStatements;
+    }
+
     public boolean hasDependency(RegisterDependencyNode source, RegisterDependencyNode dest) {
         return getDependencies(source).contains(dest);
     }

@@ -36,7 +36,7 @@ public class Main {
         }
         System.out.println("Snippets: " + snippets.size());
 
-//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/com/appdynamics/eumagent/runtime/private/z.smali"));
+//        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/com/mobile/ui/paymenthub/fragment/PaymentHubAddUkNumberFragment.smali"));
 //        parser.parseFile();
 //        parser.process();
 //        snippets.addAll(parser.snippets);
@@ -65,6 +65,10 @@ public class Main {
             }
 
             if(i % 1000 == 0) { System.out.println(i); }
+        }
+
+        for(StringSnippet snippet : snippets) {
+            System.out.println(snippet.getPrintableStatements());
         }
 
         // write distance matrix

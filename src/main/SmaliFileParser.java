@@ -23,7 +23,7 @@ public class SmaliFileParser {
     public void processSnippet(StringSnippet snippet) {
         // find all possible paths from the string declaration to the point where the string is decrypted
         Set<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
-        List<Set<RegisterDependencyNode>> dependencySets = new ArrayList<>();
+        List<Set<Integer>> statementsSet = new ArrayList<>();
 
         if(stringPaths.size() == 0) {
             snippet.stringIsEncrypted = false;
@@ -37,8 +37,8 @@ public class SmaliFileParser {
         for(MethodExecutionPath path : stringPaths) {
             path.buildRegisterDependencyGraph();
             RegisterDependencyNode rootNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
+            statementsSet.add(path.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
             Set<RegisterDependencyNode> dependencies = path.registerDependencyGraph.getDependencies(rootNode);
-            dependencySets.add(dependencies);
             for(Integer undefinedRegister : path.registerDependencyGraph.undefinedRegisters) {
                 if(dependencies.contains(new RegisterDependencyNode(undefinedRegister, 0))) {
                     undefinedRegisters.add(undefinedRegister);
@@ -56,10 +56,10 @@ public class SmaliFileParser {
             }
         }
 
-        // test whether the dependency sets are the same, if so, jumps do not matter and we can exclude them
+        // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
         boolean areEqual = true;
-        for(int i = 0; i < dependencySets.size() - 1; i++) {
-            if(!dependencySets.get(i).equals(dependencySets.get(i + 1))) {
+        for(int i = 0; i < statementsSet.size() - 1; i++) {
+            if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
                 areEqual = false;
                 break;
             }
@@ -81,14 +81,14 @@ public class SmaliFileParser {
         // we now check if there are undefined registers - if there are, create another dependency graph
         if(undefinedRegisters.size() > 0) {
             Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
-            dependencySets = new ArrayList<>();
+            statementsSet = new ArrayList<>();
             for(MethodExecutionPath backwardPath : backwardPaths) {
-                Set<RegisterDependencyNode> dependenciesForPath = new HashSet<>();
+                Set<Integer> statementsForPath = new HashSet<>();
                 backwardPath.buildRegisterDependencyGraph();
                 for(Integer undefinedRegister : undefinedRegisters) {
                     RegisterDependencyNode rootNode = backwardPath.registerDependencyGraph.activeRegister.get(undefinedRegister);
                     Set<RegisterDependencyNode> dependencies = backwardPath.registerDependencyGraph.getDependencies(rootNode);
-                    dependenciesForPath.addAll(dependencies);
+                    statementsForPath.addAll(backwardPath.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
 
                     // if this undefined register depends on another undefined register, the string is probably not encrypted
                     for(Integer undefinedRegister2 : backwardPath.registerDependencyGraph.undefinedRegisters) {
@@ -99,13 +99,13 @@ public class SmaliFileParser {
                         }
                     }
                 }
-                dependencySets.add(dependenciesForPath);
+                statementsSet.add(statementsForPath);
             }
 
             // test whether the dependency sets are the same, if so, jumps do not matter and we can exclude them
             areEqual = true;
-            for(int i = 0; i < dependencySets.size() - 1; i++) {
-                if(!dependencySets.get(i).equals(dependencySets.get(i + 1))) {
+            for(int i = 0; i < statementsSet.size() - 1; i++) {
+                if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
                     areEqual = false;
                     break;
                 }
@@ -247,7 +247,7 @@ public class SmaliFileParser {
             if(methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("b")) {
+//            if(!methodNode.method.getName().equals("newInstance")) {
 //                continue;
 //            }
 
