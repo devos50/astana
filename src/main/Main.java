@@ -1,6 +1,12 @@
 package main;
 
+import com.googlecode.d2j.smali.BaksmaliCmd;
+import com.googlecode.dex2jar.tools.Dex2jarCmd;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
+import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
 import smile.clustering.HierarchicalClustering;
 import smile.clustering.linkage.WardLinkage;
 
@@ -11,29 +17,33 @@ public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
 
     public static void main(String[] args) throws IOException {
-//        File jarFile = new File("data/barclays.jar");
-//        if(!jarFile.exists()) {
-//            // convert APK to .jar in order to run smali code
-//            new Dex2jarCmd().doMain("data/barclays.apk", "-o", "data/barclays.jar");
-//        }
-//
-//        File smaliFilesPath = new File("data/barclays-smali");
-//        if(!smaliFilesPath.exists()) {
-//            // convert APK to smali files
-//            new BaksmaliCmd().doMain("data/barclays.apk", "-o", "data/barclays-smali");
-//        }
-
-        File analyzePath = new File("data/monzo-smali");
-        List<File> files = (List<File>) FileUtils.listFiles(analyzePath, new String[] { "smali" }, true);
-        System.out.println("Number of smali files: " + files.size());
-
-        for(File smaliFile : files) {
-            System.out.println("Processing file " + smaliFile.getPath());
-            main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
-            parser.parseFile();
-            parser.process();
-            snippets.addAll(parser.snippets);
+        File jarFile = new File("data/halifax.jar");
+        if(!jarFile.exists()) {
+            // convert APK to .jar in order to run smali code
+            new Dex2jarCmd().doMain("data/halifax.apk", "-o", "data/halifax.jar", "-n");
         }
+
+        File smaliFilesPath = new File("data/halifax-smali");
+        if(!smaliFilesPath.exists()) {
+            // convert APK to smali files
+            new BaksmaliCmd().doMain("data/halifax.apk", "-o", "data/halifax-smali");
+        }
+
+        File analyzePath = new File("data/halifax-smali");
+        for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
+            if(!smaliFile.getPath().startsWith("data/halifax-smali/android")) {
+                System.out.println("Processing file " + smaliFile.getPath());
+                main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
+                parser.parseFile();
+                parser.process();
+                snippets.addAll(parser.snippets);
+            } else {
+                System.out.println("Skipping file " + smaliFile.getPath());
+            }
+        }
+
+//        System.out.println("Number of smali files: " + files.size());
+
         System.out.println("Snippets: " + snippets.size());
 
 //        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/iiiiii/vyvyyy.smali"));
