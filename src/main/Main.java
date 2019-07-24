@@ -3,12 +3,7 @@ package main;
 import com.googlecode.d2j.smali.BaksmaliCmd;
 import com.googlecode.dex2jar.tools.Dex2jarCmd;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.FileFilterUtils;
-import org.apache.commons.io.filefilter.IOFileFilter;
-import org.apache.commons.io.filefilter.TrueFileFilter;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
-import smile.clustering.HierarchicalClustering;
-import smile.clustering.linkage.WardLinkage;
+import smile.clustering.KMeans;
 
 import java.io.*;
 import java.util.*;
@@ -17,21 +12,24 @@ public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
 
     public static void main(String[] args) throws IOException {
-//        File jarFile = new File("data/halifax.jar");
-//        if(!jarFile.exists()) {
-//            // convert APK to .jar in order to run smali code
-//            new Dex2jarCmd().doMain("data/halifax.apk", "-o", "data/halifax.jar", "-n");
-//        }
-//
-//        File smaliFilesPath = new File("data/halifax-smali");
-//        if(!smaliFilesPath.exists()) {
-//            // convert APK to smali files
-//            new BaksmaliCmd().doMain("data/halifax.apk", "-o", "data/halifax-smali");
-//        }
+        String apkPath = "barclays.apk";
+        String apkName = apkPath.split("\\.")[0];
 
-        File analyzePath = new File("data/lloyds-smali");
+        File jarFile = new File("data/" + apkName + ".jar");
+        if(!jarFile.exists()) {
+            // convert APK to .jar in order to run smali code
+            new Dex2jarCmd().doMain(apkPath, "-o", "data/" + apkName + ".jar", "-n");
+        }
+
+        File smaliFilesPath = new File("data/" + apkName + "-smali");
+        if(!smaliFilesPath.exists()) {
+            // convert APK to smali files
+            new BaksmaliCmd().doMain(apkPath, "-o", "data/" + apkName + "-smali");
+        }
+
+        File analyzePath = new File("data/" + apkName + "-smali");
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-            if(!smaliFile.getPath().startsWith("data/lloyds-smali/android")) {
+            if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
                 parser.parseFile();
@@ -75,10 +73,6 @@ public class Main {
             if(i % 1000 == 0) { System.out.println(i); }
         }
 
-        for(StringSnippet snippet : snippets) {
-            System.out.println(snippet.getPrintableStatements());
-        }
-
         // write distance matrix
 //        BufferedWriter br = new BufferedWriter(new FileWriter("distances.csv"));
 //        StringBuilder sb = new StringBuilder();
@@ -94,14 +88,9 @@ public class Main {
 //        br.write(sb.toString());
 //        br.close();
 
-        String[] names = new String[MAX_ITEMS];
-        for(int i = 0; i < MAX_ITEMS; i++) {
-            names[i] = "" + i;
-        }
-
         System.out.println("Clustering...");
-        HierarchicalClustering hac = new HierarchicalClustering(new WardLinkage(distances));
-        int[] membership = hac.partition(10);
+        KMeans kmeans = new KMeans(distances, 10, 30000);
+        int[] membership = kmeans.getClusterLabel();
         for(int cluster = 0; cluster < 10; cluster++) {
             ArrayList<Integer> belongsTo = new ArrayList<>();
             for(int i = 0; i < membership.length; i++) {
@@ -124,7 +113,29 @@ public class Main {
                 System.out.println("Item " + belongsTo.get(i) + ": C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
             }
 
-            System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
+            // compute mean distance
+            ArrayList<Double> inClusterDistances = new ArrayList<>();
+            for(int i = 0; i < belongsTo.size(); i++) {
+                for(int j = 0; j < belongsTo.size(); j++) {
+                    inClusterDistances.add(distances[belongsTo.get(i)][belongsTo.get(j)]);
+                }
+            }
+
+            Collections.sort(inClusterDistances);
+            if(inClusterDistances.size() < 10) {
+                System.out.println(inClusterDistances);
+            }
+
+
+            if(inClusterDistances.size() % 2 == 0) {
+                double median = (inClusterDistances.get(inClusterDistances.size() / 2) + inClusterDistances.get(inClusterDistances.size() / 2 - 1)) / 2.0;
+                System.out.println(median);
+            }
+            else {
+                System.out.println(inClusterDistances.get(inClusterDistances.size() / 2));
+            }
+
+//            System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
 
 //            // compute sum of squares within cluster
 //
