@@ -291,7 +291,7 @@ public class RegisterDependencyGraph {
                     stmtNode.op == Op.DIV_INT_LIT8 || stmtNode.op == Op.ADD_INT_LIT16 || stmtNode.op == Op.SHR_INT_LIT8 ||
                     stmtNode.op == Op.AND_INT_LIT8 || stmtNode.op == Op.RSUB_INT_LIT8 || stmtNode.op == Op.REM_INT_LIT8 ||
                     stmtNode.op == Op.DIV_INT_LIT16 || stmtNode.op == Op.OR_INT_LIT8 || stmtNode.op == Op.OR_INT_LIT16 ||
-                    stmtNode.op == Op.USHR_INT_LIT8) {
+                    stmtNode.op == Op.USHR_INT_LIT8 || stmtNode.op == Op.REM_INT_LIT16) {
                 Stmt2R1NNode castStmtNode = (Stmt2R1NNode) stmtNode;
                 RegisterDependencyNode oldRegisterSrc = getActiveRegister(castStmtNode.srcReg);
                 RegisterDependencyNode newRegister = makeNewRegister(castStmtNode.distReg);
