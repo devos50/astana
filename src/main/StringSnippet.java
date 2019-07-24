@@ -3,7 +3,8 @@ package main;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.reader.Op;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.File;
 import java.util.*;
@@ -65,7 +66,7 @@ public class StringSnippet {
             if(i != extractedStatements.size() - 1) {
                 DexStmtNode nextNode = extractedStatements.get(i + 1);
                 if(node.op == null || nextNode.op == null) { continue; }
-                Pair<Integer, Integer> pair = new Pair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
+                Pair<Integer, Integer> pair = new ImmutablePair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
                 if(!frequencyMap.containsKey(pair)) {
                     frequencyMap.put(pair, 0);
                 }

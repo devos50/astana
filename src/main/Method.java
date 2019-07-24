@@ -5,7 +5,8 @@ import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.TryCatchNode;
 import com.googlecode.d2j.node.insn.*;
 import com.googlecode.d2j.reader.Op;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
@@ -166,7 +167,7 @@ public class Method {
         MethodSection destinationSection = getSectionForStatement(destStmtIndex);
         MethodExecutionPath firstPath = new MethodExecutionPath(this, sourceStmtIndex, destStmtIndex);
         firstPath.sectionsVisited.add(sourceSection);
-        queue.add(new Pair<>(sourceSection, firstPath));
+        queue.add(new ImmutablePair<>(sourceSection, firstPath));
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
             if(queue.size() >= 100000) {
@@ -193,7 +194,7 @@ public class Method {
                     MethodExecutionPath copied = currentPath.copy();
                     copied.path.add(jump);
                     copied.sectionsVisited.add(jump.toSection);
-                    queue.add(new Pair<>(jump.toSection, copied));
+                    queue.add(new ImmutablePair<>(jump.toSection, copied));
                 }
             }
         }

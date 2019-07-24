@@ -5,7 +5,8 @@ import com.googlecode.d2j.node.DexMethodNode;
 import com.googlecode.d2j.node.insn.*;
 import com.googlecode.d2j.reader.Op;
 import com.googlecode.d2j.smali.Smali;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
 import java.util.*;
@@ -155,7 +156,7 @@ public class SmaliFileParser {
         if(stmtNode.op == Op.INVOKE_DIRECT) {
             MethodStmtNode mnn = (MethodStmtNode) stmtNode;
             if(mnn.method.getName().equals("<init>") && mnn.method.getOwner().equals("Ljava/lang/String;")) {
-                potentialStringDecryption = new Pair<>(stmtIndex, mnn.args[0]);
+                potentialStringDecryption = new ImmutablePair<>(stmtIndex, mnn.args[0]);
             }
         }
         else if(stmtNode.op == Op.INVOKE_STATIC) {
@@ -173,21 +174,21 @@ public class SmaliFileParser {
                 }
 
                 if(nextStmtNode.op != Op.MOVE_RESULT_OBJECT) {
-                    return new Pair<>(-1, -1);
+                    return new ImmutablePair<>(-1, -1);
                 }
                 Stmt1RNode castNode = (Stmt1RNode) nextStmtNode;
-                potentialStringDecryption = new Pair<>(currentStmtIndex, castNode.a);
+                potentialStringDecryption = new ImmutablePair<>(currentStmtIndex, castNode.a);
             }
         }
 
         if(potentialStringDecryption == null) {
-            return new Pair<>(-1, -1);
+            return new ImmutablePair<>(-1, -1);
         }
 
         MethodSection stringInitSection = method.getSectionForStatement(stringInitStmtIndex);
         MethodSection stringDecryptSection = method.getSectionForStatement(stmtIndex);
         if(stringInitSection.sectionType == MethodSectionType.TRY_BLOCK && stringDecryptSection.sectionType == MethodSectionType.CATCH_BLOCK) {
-            return new Pair<>(-1, -1);
+            return new ImmutablePair<>(-1, -1);
         }
 
         return potentialStringDecryption;
@@ -235,7 +236,7 @@ public class SmaliFileParser {
                 }
             }
         }
-        return new Pair<>(-1, -1);
+        return new ImmutablePair<>(-1, -1);
     }
 
     public void parseFile() throws FileNotFoundException {

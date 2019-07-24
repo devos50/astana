@@ -4,7 +4,6 @@ import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
 import com.googlecode.d2j.node.insn.PackedSwitchStmtNode;
 import com.googlecode.d2j.reader.Op;
-import javafx.util.Pair;
 
 import java.util.*;
 
