@@ -9,6 +9,7 @@ import java.io.File;
 import java.util.*;
 
 public class StringSnippet {
+    public final String apkPath;
     public final File file;
     public Method method;
     public ConstStmtNode stringInitNode;
@@ -22,7 +23,8 @@ public class StringSnippet {
     public boolean decryptionSuccessful = false;
     public String decryptedString = null;
 
-    public StringSnippet(File file, Method method, int stringInitIndex) {
+    public StringSnippet(String apkPath, File file, Method method, int stringInitIndex) {
+        this.apkPath = apkPath;
         this.file = file;
         this.method = method;
         this.stringInitIndex = stringInitIndex;

@@ -12,11 +12,13 @@ import java.util.*;
 
 public class SmaliFileParser {
 
+    private final String apkPath;
     private final File smaliFile;
     public DexClassNode rootNode;
     public List<StringSnippet> snippets = new ArrayList<>();
 
-    public SmaliFileParser(File smaliFile) {
+    public SmaliFileParser(String apkPath, File smaliFile) {
+        this.apkPath = apkPath;
         this.smaliFile = smaliFile;
     }
 
@@ -265,7 +267,7 @@ public class SmaliFileParser {
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
                     if(stringInitNode.value.toString().length() > 0) {
 //                        System.out.println("Processing str: " + stringInitNode.value.toString());
-                        StringSnippet snippet = new StringSnippet(smaliFile, method, stmtIndex);
+                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, method, stmtIndex);
                         Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(snippet);
                         if(pair.getKey() != -1) {
                             snippet.stringDecryptedIndex = pair.getKey();

@@ -6,15 +6,22 @@ import org.apache.commons.io.FileUtils;
 import smile.clustering.KMeans;
 
 import java.io.*;
+import java.sql.SQLException;
 import java.util.*;
 
 public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
+    private static StringDatabase database;
 
-    public static void main(String[] args) throws IOException {
-        String apkPath = "barclays.apk";
+    public static void processApk(String apkPath) throws SQLException, FileNotFoundException {
+        if(database.isPreprocessed(apkPath)) {
+            System.out.println("APK " + apkPath + " is already processed - ignoring");
+            return;
+        }
+
+        database.addApplication(apkPath);
+
         String apkName = apkPath.split("\\.")[0];
-
         File jarFile = new File("data/" + apkName + ".jar");
         if(!jarFile.exists()) {
             // convert APK to .jar in order to run smali code
@@ -31,7 +38,7 @@ public class Main {
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
-                main.SmaliFileParser parser = new main.SmaliFileParser(smaliFile);
+                main.SmaliFileParser parser = new SmaliFileParser(apkPath, smaliFile);
                 parser.parseFile();
                 parser.process();
                 snippets.addAll(parser.snippets);
@@ -40,7 +47,19 @@ public class Main {
             }
         }
 
+        // insert snippets in the database
+        for(StringSnippet snippet : snippets) {
+            database.insertSnippet(snippet);
+        }
+
+        database.setPreprocessed(apkPath);
         System.out.println("Snippets: " + snippets.size());
+    }
+
+    public static void main(String[] args) throws IOException, SQLException {
+        String apkPath = "barclays.apk";
+        database = new StringDatabase();
+        processApk(apkPath);
 
 //        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/com/google/android/gms/dynamite/DynamiteModule.smali"));
 //        parser.parseFile();
@@ -57,21 +76,21 @@ public class Main {
 
 //        System.out.println("Starting to compute distance matrix of " + snippets.size() + " items!");
 //
-        Collections.shuffle(snippets, new Random(1));
+//        Collections.shuffle(snippets, new Random(1));
 //
         // compute distance matrix
-        int MAX_ITEMS = Math.min(snippets.size(), 7000);
-
-        double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
-        for(int i = 0; i < MAX_ITEMS; i++) {
-            for(int j = 0; j < i; j++) {
-                double dist = 1 - snippets.get(i).cosineSimilarity(snippets.get(j));
-                distances[i][j] = dist;
-                distances[j][i] = dist;
-            }
-
-            if(i % 1000 == 0) { System.out.println(i); }
-        }
+//        int MAX_ITEMS = Math.min(snippets.size(), 7000);
+//
+//        double[][] distances = new double[MAX_ITEMS][MAX_ITEMS];
+//        for(int i = 0; i < MAX_ITEMS; i++) {
+//            for(int j = 0; j < i; j++) {
+//                double dist = 1 - snippets.get(i).cosineSimilarity(snippets.get(j));
+//                distances[i][j] = dist;
+//                distances[j][i] = dist;
+//            }
+//
+//            if(i % 1000 == 0) { System.out.println(i); }
+//        }
 
         // write distance matrix
 //        BufferedWriter br = new BufferedWriter(new FileWriter("distances.csv"));
@@ -88,52 +107,52 @@ public class Main {
 //        br.write(sb.toString());
 //        br.close();
 
-        System.out.println("Clustering...");
-        KMeans kmeans = new KMeans(distances, 10, 30000);
-        int[] membership = kmeans.getClusterLabel();
-        for(int cluster = 0; cluster < 10; cluster++) {
-            ArrayList<Integer> belongsTo = new ArrayList<>();
-            for(int i = 0; i < membership.length; i++) {
-                if(membership[i] == cluster) { belongsTo.add(i); }
-            }
-            System.out.println("Members in cluster " + cluster + ": " + belongsTo.size());
-
-            int encrypted = 0;
-            int decrypted = 0;
-            for(int i = 0; i < belongsTo.size(); i++) {
-                StringSnippet item = snippets.get(belongsTo.get(i));
-                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
-                else { decrypted++; }
-
-                System.out.println("Item " + belongsTo.get(i) + ": " + item.getPrintableStatements());
-            }
-
-            for(int i = 0; i < belongsTo.size(); i++) {
-                StringSnippet item = snippets.get(belongsTo.get(i));
-                System.out.println("Item " + belongsTo.get(i) + ": C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
-            }
-
-            // compute mean distance
-            ArrayList<Double> inClusterDistances = new ArrayList<>();
-            for(int i = 0; i < belongsTo.size(); i++) {
-                for(int j = 0; j < belongsTo.size(); j++) {
-                    inClusterDistances.add(distances[belongsTo.get(i)][belongsTo.get(j)]);
-                }
-            }
-
-            Collections.sort(inClusterDistances);
-            if(inClusterDistances.size() < 10) {
-                System.out.println(inClusterDistances);
-            }
-
-
-            if(inClusterDistances.size() % 2 == 0) {
-                double median = (inClusterDistances.get(inClusterDistances.size() / 2) + inClusterDistances.get(inClusterDistances.size() / 2 - 1)) / 2.0;
-                System.out.println(median);
-            }
-            else {
-                System.out.println(inClusterDistances.get(inClusterDistances.size() / 2));
-            }
+//        System.out.println("Clustering...");
+//        KMeans kmeans = new KMeans(distances, 10, 30000);
+//        int[] membership = kmeans.getClusterLabel();
+//        for(int cluster = 0; cluster < 10; cluster++) {
+//            ArrayList<Integer> belongsTo = new ArrayList<>();
+//            for(int i = 0; i < membership.length; i++) {
+//                if(membership[i] == cluster) { belongsTo.add(i); }
+//            }
+//            System.out.println("Members in cluster " + cluster + ": " + belongsTo.size());
+//
+//            int encrypted = 0;
+//            int decrypted = 0;
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                StringSnippet item = snippets.get(belongsTo.get(i));
+//                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
+//                else { decrypted++; }
+//
+//                System.out.println("Item " + belongsTo.get(i) + ": " + item.getPrintableStatements());
+//            }
+//
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                StringSnippet item = snippets.get(belongsTo.get(i));
+//                System.out.println("Item " + belongsTo.get(i) + ": C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
+//            }
+//
+//            // compute mean distance
+//            ArrayList<Double> inClusterDistances = new ArrayList<>();
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                for(int j = 0; j < belongsTo.size(); j++) {
+//                    inClusterDistances.add(distances[belongsTo.get(i)][belongsTo.get(j)]);
+//                }
+//            }
+//
+//            Collections.sort(inClusterDistances);
+//            if(inClusterDistances.size() < 10) {
+//                System.out.println(inClusterDistances);
+//            }
+//
+//
+//            if(inClusterDistances.size() % 2 == 0) {
+//                double median = (inClusterDistances.get(inClusterDistances.size() / 2) + inClusterDistances.get(inClusterDistances.size() / 2 - 1)) / 2.0;
+//                System.out.println(median);
+//            }
+//            else {
+//                System.out.println(inClusterDistances.get(inClusterDistances.size() / 2));
+//            }
 
 //            System.out.println("encrypted: " + encrypted + ", decrypted: " + decrypted);
 
@@ -204,5 +223,5 @@ public class Main {
 //            res /= totalDistance;
 //            System.out.println("monzo," + k + "," + res);
 //        }
-    }
+//    }
 }

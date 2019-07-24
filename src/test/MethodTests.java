@@ -15,7 +15,7 @@ public class MethodTests {
 
     @Test
     public void testSimpleMethod() throws FileNotFoundException {
-        SmaliFileParser parser = new SmaliFileParser(new File(Paths.get("src", "test", "resources", "simple.smali").toString()));
+        SmaliFileParser parser = new SmaliFileParser("test.apk", new File(Paths.get("src", "test", "resources", "simple.smali").toString()));
         parser.parseFile();
 
         assertNotNull(parser.rootNode.methods);
