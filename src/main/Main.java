@@ -2,6 +2,7 @@ package main;
 
 import com.googlecode.d2j.smali.BaksmaliCmd;
 import com.googlecode.dex2jar.tools.Dex2jarCmd;
+import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 import smile.clustering.KMeans;
 
@@ -13,35 +14,37 @@ public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
     private static StringDatabase database;
 
-    public static void processApk(String apkPath) throws SQLException, FileNotFoundException {
-        if(database.isPreprocessed(apkPath)) {
-            System.out.println("APK " + apkPath + " is already processed - ignoring");
+    public static void processApk(File apkFile) throws SQLException, FileNotFoundException {
+        String apkName = apkFile.getName();
+        if(database.isPreprocessed(apkName)) {
+            System.out.println("APK " + apkName + " is already processed - ignoring");
             return;
         }
 
-        database.addApplication(apkPath);
+        database.addApplication(apkName);
 
-        String apkName = apkPath.split("\\.")[0];
         File jarFile = new File("data/" + apkName + ".jar");
         if(!jarFile.exists()) {
             // convert APK to .jar in order to run smali code
-            new Dex2jarCmd().doMain(apkPath, "-o", "data/" + apkName + ".jar", "-n");
+            new Dex2jarCmd().doMain(apkFile.getPath(), "-o", "data/" + apkName + ".jar", "-n");
         }
 
         File smaliFilesPath = new File("data/" + apkName + "-smali");
         if(!smaliFilesPath.exists()) {
             // convert APK to smali files
-            new BaksmaliCmd().doMain(apkPath, "-o", "data/" + apkName + "-smali");
+            new BaksmaliCmd().doMain(apkFile.getPath(), "-o", "data/" + apkName + "-smali");
         }
 
         File analyzePath = new File("data/" + apkName + "-smali");
+        int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
-                main.SmaliFileParser parser = new SmaliFileParser(apkPath, smaliFile);
+                SmaliFileParser parser = new SmaliFileParser(apkName, smaliFile);
                 parser.parseFile();
                 parser.process();
                 snippets.addAll(parser.snippets);
+                numStrings += parser.numStrings;
             } else {
                 System.out.println("Skipping file " + smaliFile.getPath());
             }
@@ -52,14 +55,37 @@ public class Main {
             database.insertSnippet(snippet);
         }
 
-        database.setPreprocessed(apkPath);
+        database.setPreprocessed(apkName, numStrings);
         System.out.println("Snippets: " + snippets.size());
     }
 
-    public static void main(String[] args) throws IOException, SQLException {
-        String apkPath = "barclays.apk";
+    public static void main(String[] args) throws IOException, SQLException, ParseException {
+        Options options = new Options();
+        Option input = new Option("i", "input", true, "input file path");
+        input.setRequired(true);
+        options.addOption(input);
+
+        CommandLineParser parser = new DefaultParser();
+        CommandLine line = parser.parse( options, args );
+
         database = new StringDatabase();
-        processApk(apkPath);
+
+        String inputPath = line.getOptionValue("i");
+        File inputFilePath = new File(inputPath);
+        if(inputFilePath.isDirectory()) {
+            // get all the APKs in this directory and parse them indiviually
+            for(File apkFile : FileUtils.listFiles(inputFilePath, new String[] { "apk" }, true)) {
+                System.out.println("Processing APK: " + apkFile);
+                processApk(apkFile);
+            }
+        }
+        else {
+            if(!inputFilePath.getPath().endsWith(".apk")) {
+                System.out.println("Provided input file is not an APK file!");
+                System.exit(1);
+            }
+            processApk(inputFilePath);
+        }
 
 //        SmaliFileParser parser = new SmaliFileParser(new File("data/lloyds-smali/com/google/android/gms/dynamite/DynamiteModule.smali"));
 //        parser.parseFile();

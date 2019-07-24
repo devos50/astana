@@ -35,7 +35,8 @@ public class StringDatabase {
         if(!tableExists("applications")) {
             String sql = "CREATE TABLE applications(" +
                     "apk varchar(255) PRIMARY KEY," +
-                    "preprocessed INTEGER" +
+                    "preprocessed INTEGER," +
+                    "num_strings INTEGER" +
                     ");";
 
             Statement stmt = connection.createStatement();
@@ -53,7 +54,7 @@ public class StringDatabase {
 
     public void addApplication(String apkPath) throws SQLException {
         if(!hasApplication(apkPath)) {
-            String sql = "INSERT INTO applications VALUES(?, 0)";
+            String sql = "INSERT INTO applications VALUES(?, 0, 0)";
             PreparedStatement preparedStatement = connection.prepareStatement(sql);
             preparedStatement.setString(1, apkPath);
             preparedStatement.execute();
@@ -77,10 +78,11 @@ public class StringDatabase {
         return rs.getBoolean(1);
     }
 
-    public void setPreprocessed(String apkPath) throws SQLException {
-        String sql = "UPDATE applications SET preprocessed = 1 WHERE apk = ?";
+    public void setPreprocessed(String apkPath, int numStrings) throws SQLException {
+        String sql = "UPDATE applications SET preprocessed = 1, num_strings = ? WHERE apk = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, apkPath);
+        preparedStatement.setInt(1, numStrings);
+        preparedStatement.setString(2, apkPath);
         preparedStatement.execute();
     }
 

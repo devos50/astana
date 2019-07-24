@@ -219,7 +219,8 @@ public class RegisterDependencyGraph {
                 RegisterDependencyNode newRegister = makeNewRegister(fieldStmtNode.a);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.IGET_OBJECT || stmtNode.op == Op.IGET || stmtNode.op == Op.IGET_BOOLEAN || stmtNode.op == Op.IGET_WIDE || stmtNode.op == Op.IGET_CHAR || stmtNode.op == Op.IGET_BYTE) {
+            else if(stmtNode.op == Op.IGET_OBJECT || stmtNode.op == Op.IGET || stmtNode.op == Op.IGET_BOOLEAN || stmtNode.op == Op.IGET_WIDE ||
+                    stmtNode.op == Op.IGET_CHAR || stmtNode.op == Op.IGET_BYTE || stmtNode.op == Op.IGET_SHORT) {
                 FieldStmtNode fieldStmtNode = (FieldStmtNode) stmtNode;
                 RegisterDependencyNode newRegister = makeNewRegister(fieldStmtNode.a);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
@@ -300,7 +301,7 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.IPUT_OBJECT || stmtNode.op == Op.IPUT_BOOLEAN || stmtNode.op == Op.IPUT || stmtNode.op == Op.IPUT_WIDE) {
                 // TODO ignore iput for now!
             }
-            else if(stmtNode.op == Op.FILLED_NEW_ARRAY) {
+            else if(stmtNode.op == Op.FILLED_NEW_ARRAY || stmtNode.op == Op.FILLED_NEW_ARRAY_RANGE) {
                 // filled new arrays are processed by move-result statements
             }
             else if(stmtNode.op == Op.FILL_ARRAY_DATA) {

@@ -15,6 +15,7 @@ public class SmaliFileParser {
     private final String apkPath;
     private final File smaliFile;
     public DexClassNode rootNode;
+    public int numStrings = 0;
     public List<StringSnippet> snippets = new ArrayList<>();
 
     public SmaliFileParser(String apkPath, File smaliFile) {
@@ -264,6 +265,7 @@ public class SmaliFileParser {
             for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
+                    numStrings++;
                     ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
                     if(stringInitNode.value.toString().length() > 0) {
 //                        System.out.println("Processing str: " + stringInitNode.value.toString());
