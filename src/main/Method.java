@@ -175,7 +175,7 @@ public class Method {
         queue.add(new ImmutablePair<>(sourceSection, firstPath));
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
-            if(queue.size() >= 100000) {
+            if(queue.size() >= 10000) {
                 return paths;
             }
 

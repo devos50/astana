@@ -259,43 +259,83 @@ public class SmaliFileParser {
             if (methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-            if(!methodNode.method.getName().equals("Ajg")) {
-                continue;
-            }
+//            if(!methodNode.method.getName().equals("Bjg")) {
+//                continue;
+//            }
 
             Method method = new Method(apkPath, smaliFile, methodNode);
+            System.out.println("Processing method " + methodNode.method.getName());
 
             for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
-                int stringRegister = -1;
+                Set<Pair<Integer, Integer>> stringRegisters = new HashSet<>();
+
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
-                if (stmtNode instanceof MethodStmtNode && stmtNode.op != Op.INVOKE_STATIC) {
-                    // check if the method is called on a string instance
+                if(stmtNode instanceof MethodStmtNode) {
                     MethodStmtNode methodStmtNode = (MethodStmtNode) stmtNode;
-                    if (methodStmtNode.method.getOwner().equals("Ljava/lang/String;")) {
-                        stringRegister = methodStmtNode.args[0];
+
+                    // TODO we do not support range yets
+                    if(stmtNode.op == Op.INVOKE_VIRTUAL_RANGE || stmtNode.op == Op.INVOKE_STATIC_RANGE || stmtNode.op == Op.INVOKE_DIRECT_RANGE || stmtNode.op == Op.INVOKE_INTERFACE_RANGE) {
+                        continue;
                     }
-                } else if (stmtNode instanceof MethodStmtNode) {
+
+                    // check if we are invoking on a string object
+                    if(stmtNode.op != Op.INVOKE_STATIC && methodStmtNode.method.getOwner().equals("Ljava/lang/String;")) {
+                        stringRegisters.add(new ImmutablePair<>(stmtIndex - 1, methodStmtNode.args[0]));
+                    }
+
                     // check if one of the parameters is a string
-                    MethodStmtNode methodStmtNode = (MethodStmtNode) stmtNode;
                     for (int index = 0; index < methodStmtNode.method.getParameterTypes().length; index++) {
                         String paramType = methodStmtNode.method.getParameterTypes()[index];
                         if (paramType.equals("Ljava/lang/String;")) {
-                            stringRegister = methodStmtNode.args[index + 1];
+                            if(stmtNode.op == Op.INVOKE_STATIC) {
+                                stringRegisters.add(new ImmutablePair<>(stmtIndex - 1, methodStmtNode.args[index]));
+                            }
+                            else {
+                                stringRegisters.add(new ImmutablePair<>(stmtIndex - 1, methodStmtNode.args[index + 1]));
+                            }
+                        }
+                    }
+
+                    // check if the return value is a String
+                    if(methodStmtNode.method.getReturnType().equals("Ljava/lang/String;")) {
+                        // get the corresponding MOVE_RESULT_OBJECT node
+                        int currentStmtIndex = stmtIndex + 1;
+                        DexStmtNode nextStmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+                        while(nextStmtNode.op != Op.MOVE_RESULT_OBJECT && currentStmtIndex < method.methodNode.codeNode.stmts.size()) {
+                            currentStmtIndex += 1;
+                            if(currentStmtIndex < method.methodNode.codeNode.stmts.size()) {
+                                nextStmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+                            }
+                        }
+
+                        if(nextStmtNode.op == Op.MOVE_RESULT_OBJECT) {
+                            Stmt1RNode castNode = (Stmt1RNode) nextStmtNode;
+                            stringRegisters.add(new ImmutablePair<>(currentStmtIndex, castNode.a));
                         }
                     }
                 }
 
-                if (stringRegister != -1) {
-                    ProgramSlice slice = method.getBackwardsSlice(stmtIndex, stringRegister);
+                for(Pair stringRegister : stringRegisters) {
+//                    System.out.println("Processing from statement " + stringRegister.getKey() + " (reg: " + stringRegister.getValue() + ")");
+                    ProgramSlice slice = method.getBackwardsSlice((int)stringRegister.getKey(), (int)stringRegister.getValue());
                     slices.add(slice);
                 }
             }
 
             // prune by removing sub-slices
-            Set<ProgramSlice> toRemove = new HashSet<ProgramSlice>();
+            Set<ProgramSlice> toRemove = new HashSet<>();
             for(int i = 0; i < slices.size(); i++) {
                 for(int j = 0; j < slices.size(); j++) {
                     if(i == j) { continue; }
+
+                    // if the slices are equal, remove only one
+                    if(slices.get(i).extractedStatements.equals(slices.get(j).extractedStatements)) {
+                        if(i < j) {
+                            toRemove.add(slices.get(i));
+                        }
+                        continue;
+                    }
+
                     if(slices.get(i).isSubslice(slices.get(j))) {
                         toRemove.add(slices.get(i));
                     }
@@ -303,10 +343,13 @@ public class SmaliFileParser {
             }
             slices.removeAll(toRemove);
 
+            System.out.println("Slices: " + slices.size());
+
             // decrypt
-            for(ProgramSlice slice : slices) {
-                SliceExecutor.execute(slice);
-            }
+//            for(ProgramSlice slice : slices) {
+//                System.out.println("Executing slice from ind: " + slice.criterionStmtIndex);
+//                SliceExecutor.execute(slice);
+//            }
         }
     }
 
