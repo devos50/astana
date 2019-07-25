@@ -122,8 +122,13 @@ public class RegisterDependencyGraph {
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
             else if(stmtNode instanceof MethodStmtNode) {
-                // ignore for now, instead, process the move-result statement instead
                 MethodStmtNode mnn = (MethodStmtNode) stmtNode;
+
+                if(mnn.args != null) {
+                    for(Integer arg : mnn.args) {
+                        statementToRegister.get(currentStmtIndex).add(getActiveRegister(arg));
+                    }
+                }
 
                 // there is one edge case though: where we have an invoke-direct on a string. We should actually consider this one since there is no subsequent move statement
                 if(stmtNode.op == Op.INVOKE_DIRECT) {

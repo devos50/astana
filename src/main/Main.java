@@ -14,12 +14,12 @@ public class Main {
     private static ArrayList<StringSnippet> snippets = new ArrayList<>();
     private static StringDatabase database;
 
-    public static void processApk(File apkFile) throws SQLException, FileNotFoundException {
+    public static void processApk(File apkFile) throws SQLException, IOException {
         String apkName = apkFile.getName();
-        if(database.isPreprocessed(apkName)) {
-            System.out.println("APK " + apkName + " is already processed - ignoring");
-            return;
-        }
+//        if(database.isPreprocessed(apkName)) {
+//            System.out.println("APK " + apkName + " is already processed - ignoring");
+//            return;
+//        }
 
         database.addApplication(apkName);
 
@@ -38,11 +38,15 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
+            if(!smaliFile.getPath().equals("data/barclays.apk-smali/u/aq.smali")) {
+                continue;
+            }
+
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 SmaliFileParser parser = new SmaliFileParser(apkName, smaliFile);
                 parser.parseFile();
-                parser.process();
+                parser.processStrings();
                 snippets.addAll(parser.snippets);
                 numStrings += parser.numStrings;
             } else {
@@ -94,7 +98,7 @@ public class Main {
 //        System.out.println("Snippets: " + snippets.size());
 
 //        for(StringSnippet snippet : snippets) {
-//            StringDecryptor.decrypt(snippet);
+//            SliceExecutor.decrypt(snippet);
 //            if(snippet.decryptionSuccessful) {
 //                System.out.println("--> decrypted --> " + snippet.decryptedString);
 //            }

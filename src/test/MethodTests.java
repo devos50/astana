@@ -19,7 +19,7 @@ public class MethodTests {
         parser.parseFile();
 
         assertNotNull(parser.rootNode.methods);
-        Method m1 = new Method(parser.rootNode.methods.get(0));
-        assertNotNull(m1.controlFlowGraph);
+//        Method m1 = new Method(parser.rootNode.methods.get(0));
+//        assertNotNull(m1.controlFlowGraph);
     }
 }

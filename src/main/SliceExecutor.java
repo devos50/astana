@@ -23,15 +23,15 @@ import java.util.ArrayList;
 import static com.googlecode.d2j.DexConstants.ACC_PUBLIC;
 import static com.googlecode.d2j.DexConstants.ACC_STATIC;
 
-public class StringDecryptor {
+public class SliceExecutor {
 
-    public static void decrypt(StringSnippet snippet) throws IOException {
-        System.out.println("Original string: " + snippet.getString() + " (l: " + snippet.getString().length() + ", " + snippet.file.getPath() + ")");
+    public static void execute(ProgramSlice slice) throws IOException {
+//        System.out.println("Original string: " + snippet.getString() + " (l: " + snippet.getString().length() + ", " + snippet.file.getPath() + ")");
         String[] paramTypes = {"[Ljava/lang/String;"};
         Method m = new Method("LIsolated", "main", paramTypes, "V");
         DexMethodNode mn = new DexMethodNode(ACC_PUBLIC | ACC_STATIC, m);
         DexCodeNode cn = new DexCodeNode();
-        cn.stmts = snippet.extractedStatements;
+        cn.stmts = slice.extractedStatements;
         mn.codeNode = cn;
 
         // account for buffer overflow
@@ -40,18 +40,18 @@ public class StringDecryptor {
             Stmt1RNode newMoveNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
             cn.stmts.remove(cn.stmts.size() - 1);
             cn.stmts.add(newMoveNode);
-            snippet.stringResultRegister = 1;
+            slice.resultRegisterIndex = 1;
         }
 
         // add the print statement and return-void
         Field f = new Field("Ljava/lang/System;", "out", "Ljava/io/PrintStream;");
-        int printReg = (snippet.stringResultRegister == 0) ? 1 : 0;
+        int printReg = (slice.resultRegisterIndex == 0) ? 1 : 0;
         FieldStmtNode fsn = new FieldStmtNode(Op.SGET_OBJECT, printReg, 0, f);
         cn.stmts.add(fsn);
 
         paramTypes = new String[]{"Ljava/lang/String;"};
         Method printMethod = new Method("Ljava/io/PrintStream;", "println", paramTypes, "V");
-        int[] args = {printReg, snippet.stringResultRegister};
+        int[] args = {printReg, slice.resultRegisterIndex};
         MethodStmtNode msn = new MethodStmtNode(Op.INVOKE_VIRTUAL, args, printMethod);
         cn.stmts.add(msn);
 
@@ -94,9 +94,9 @@ public class StringDecryptor {
         Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/lloyds_original.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
+        Process p = Runtime.getRuntime().exec("java -cp data/barclays.apk.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
         String line = null;
-        String finalString = "";
+        String stdout = "";
         try {
             int result = p.waitFor();
 //            System.out.println("Process exit code: " + result);
@@ -104,19 +104,19 @@ public class StringDecryptor {
 //            System.out.println("Result:");
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
             while ((line = reader.readLine()) != null) {
-//                System.out.println(line);
-                finalString += line;
+                stdout += line;
             }
 
-//            line = null;
-//            reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-//            while ((line = reader.readLine()) != null) {
-//                System.out.println(line);
-//            }
+            String stderr = "";
+            reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            while ((line = reader.readLine()) != null) {
+                stderr += line;
+            }
 
-            if(result == 0 && finalString.length() > 0) {
-                snippet.decryptedString = finalString;
-                snippet.decryptionSuccessful = true;
+            if(result == 0 && stdout.length() > 0) {
+                slice.exectionResultCode = result;
+                slice.executionStdout = stdout;
+                slice.executionStderr = stderr;
             }
 
         } catch (InterruptedException e) {

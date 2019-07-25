@@ -248,6 +248,68 @@ public class SmaliFileParser {
         }
     }
 
+    public void processStrings() throws IOException {
+        if(rootNode == null || rootNode.methods == null) {
+            return;
+        }
+
+        for (DexMethodNode methodNode : rootNode.methods) {
+            List<ProgramSlice> slices = new ArrayList<>();
+
+            if (methodNode.codeNode.stmts.size() == 0) {
+                continue;
+            }
+            if(!methodNode.method.getName().equals("Ajg")) {
+                continue;
+            }
+
+            Method method = new Method(apkPath, smaliFile, methodNode);
+
+            for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
+                int stringRegister = -1;
+                DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
+                if (stmtNode instanceof MethodStmtNode && stmtNode.op != Op.INVOKE_STATIC) {
+                    // check if the method is called on a string instance
+                    MethodStmtNode methodStmtNode = (MethodStmtNode) stmtNode;
+                    if (methodStmtNode.method.getOwner().equals("Ljava/lang/String;")) {
+                        stringRegister = methodStmtNode.args[0];
+                    }
+                } else if (stmtNode instanceof MethodStmtNode) {
+                    // check if one of the parameters is a string
+                    MethodStmtNode methodStmtNode = (MethodStmtNode) stmtNode;
+                    for (int index = 0; index < methodStmtNode.method.getParameterTypes().length; index++) {
+                        String paramType = methodStmtNode.method.getParameterTypes()[index];
+                        if (paramType.equals("Ljava/lang/String;")) {
+                            stringRegister = methodStmtNode.args[index + 1];
+                        }
+                    }
+                }
+
+                if (stringRegister != -1) {
+                    ProgramSlice slice = method.getBackwardsSlice(stmtIndex, stringRegister);
+                    slices.add(slice);
+                }
+            }
+
+            // prune by removing sub-slices
+            Set<ProgramSlice> toRemove = new HashSet<ProgramSlice>();
+            for(int i = 0; i < slices.size(); i++) {
+                for(int j = 0; j < slices.size(); j++) {
+                    if(i == j) { continue; }
+                    if(slices.get(i).isSubslice(slices.get(j))) {
+                        toRemove.add(slices.get(i));
+                    }
+                }
+            }
+            slices.removeAll(toRemove);
+
+            // decrypt
+            for(ProgramSlice slice : slices) {
+                SliceExecutor.execute(slice);
+            }
+        }
+    }
+
     public void process() {
         if(rootNode == null || rootNode.methods == null) {
             return;
@@ -262,7 +324,7 @@ public class SmaliFileParser {
 //            }
 
 //            System.out.println("Processing method: " + methodNode.method.getName());
-            Method method = new Method(methodNode);
+            Method method = new Method(apkPath, smaliFile, methodNode);
             for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
                 if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {

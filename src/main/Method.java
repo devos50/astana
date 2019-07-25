@@ -8,15 +8,20 @@ import com.googlecode.d2j.reader.Op;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.io.File;
 import java.util.*;
 
 public class Method {
 
+    public final String apkPath;
+    public final File file;
     public DexMethodNode methodNode;
     public ControlFlowGraph controlFlowGraph;
     public List<MethodSection> sections = new ArrayList<>();
 
-    public Method(DexMethodNode methodNode) {
+    public Method(String apkPath, File file, DexMethodNode methodNode) {
+        this.apkPath = apkPath;
+        this.file = file;
         this.methodNode = methodNode;
 
         // prune labels that we are never jumping to
@@ -199,6 +204,58 @@ public class Method {
             }
         }
         return paths;
+    }
+
+    public ProgramSlice getBackwardsSlice(int criterionStmtIndex, int resultRegisterIndex) {
+        Set<MethodExecutionPath> stringPaths = this.getExecutionPaths(0, criterionStmtIndex);
+        List<Set<Integer>> statementsSet = new ArrayList<>();
+        ProgramSlice slice = new ProgramSlice(apkPath, file, this, criterionStmtIndex, resultRegisterIndex);
+
+        // build register dependency graphs and compute all involved statements
+        boolean[] involvedStatements = new boolean[methodNode.codeNode.stmts.size()];
+        Set<Integer> undefinedRegisters = new HashSet<>();
+        for(MethodExecutionPath path : stringPaths) {
+            path.buildRegisterDependencyGraph();
+            RegisterDependencyNode rootNode = path.registerDependencyGraph.activeRegister.get(resultRegisterIndex);
+            statementsSet.add(path.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
+            Set<RegisterDependencyNode> dependencies = path.registerDependencyGraph.getDependencies(rootNode);
+            for(Integer undefinedRegister : path.registerDependencyGraph.undefinedRegisters) {
+                if(dependencies.contains(new RegisterDependencyNode(undefinedRegister, 0))) {
+                    undefinedRegisters.add(undefinedRegister);
+                }
+            }
+        }
+
+        // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
+        boolean areEqual = true;
+        for(int i = 0; i < statementsSet.size() - 1; i++) {
+            if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
+                areEqual = false;
+                break;
+            }
+        }
+
+        boolean includeJumps = true;
+        if(areEqual) {
+            includeJumps = false;
+        }
+
+        // compute involved statements
+        for(MethodExecutionPath path : stringPaths) {
+            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(resultRegisterIndex, includeJumps);
+            for(int i = 0; i < pathInvolvedStatements.length; i++) {
+                involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
+            }
+        }
+
+        for(int i = 0; i < involvedStatements.length; i++) {
+            DexStmtNode stmtNode = methodNode.codeNode.stmts.get(i);
+            if(involvedStatements[i]) {
+                slice.extractedStatements.add(stmtNode);
+            }
+        }
+
+        return slice;
     }
 
 }
