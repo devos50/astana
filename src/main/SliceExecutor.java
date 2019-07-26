@@ -114,6 +114,7 @@ public class SliceExecutor {
             }
 
             if(result == 0 && stdout.length() > 0) {
+                System.out.println("RESULT: " + stdout);
                 slice.exectionResultCode = result;
                 slice.executionStdout = stdout;
                 slice.executionStderr = stderr;

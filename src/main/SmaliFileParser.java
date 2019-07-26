@@ -248,7 +248,7 @@ public class SmaliFileParser {
         }
     }
 
-    public void processStrings() throws IOException {
+    public void processStrings(ProgramSliceRepository slicesRepository) throws IOException {
         if(rootNode == null || rootNode.methods == null) {
             return;
         }
@@ -259,9 +259,9 @@ public class SmaliFileParser {
             if (methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-//            if(!methodNode.method.getName().equals("Bjg")) {
-//                continue;
-//            }
+            if(!methodNode.method.getName().equals("onReceive")) {
+                continue;
+            }
 
             Method method = new Method(apkPath, smaliFile, methodNode);
             System.out.println("Processing method " + methodNode.method.getName());
@@ -274,13 +274,9 @@ public class SmaliFileParser {
                     MethodStmtNode methodStmtNode = (MethodStmtNode) stmtNode;
 
                     // TODO we do not support range yets
+                    // TODO check return object whether it is a string!
                     if(stmtNode.op == Op.INVOKE_VIRTUAL_RANGE || stmtNode.op == Op.INVOKE_STATIC_RANGE || stmtNode.op == Op.INVOKE_DIRECT_RANGE || stmtNode.op == Op.INVOKE_INTERFACE_RANGE) {
                         continue;
-                    }
-
-                    // check if we are invoking on a string object
-                    if(stmtNode.op != Op.INVOKE_STATIC && methodStmtNode.method.getOwner().equals("Ljava/lang/String;")) {
-                        stringRegisters.add(new ImmutablePair<>(stmtIndex - 1, methodStmtNode.args[0]));
                     }
 
                     // check if one of the parameters is a string
@@ -316,11 +312,15 @@ public class SmaliFileParser {
                 }
 
                 for(Pair stringRegister : stringRegisters) {
-//                    System.out.println("Processing from statement " + stringRegister.getKey() + " (reg: " + stringRegister.getValue() + ")");
-                    ProgramSlice slice = method.getBackwardsSlice((int)stringRegister.getKey(), (int)stringRegister.getValue());
+                    System.out.println("Processing from statement " + stringRegister.getKey() + " (reg: " + stringRegister.getValue() + ")");
+                    ProgramSlice slice = new ProgramSlice(apkPath, smaliFile, method, (int)stringRegister.getKey(), (int)stringRegister.getValue());
+                    slice.compute();
                     slices.add(slice);
+
                 }
             }
+
+            System.out.println("Slices before prune: " + slices.size());
 
             // prune by removing sub-slices
             Set<ProgramSlice> toRemove = new HashSet<>();
@@ -342,8 +342,7 @@ public class SmaliFileParser {
                 }
             }
             slices.removeAll(toRemove);
-
-            System.out.println("Slices: " + slices.size());
+            slicesRepository.addAll(slices);
 
             // decrypt
 //            for(ProgramSlice slice : slices) {

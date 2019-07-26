@@ -98,20 +98,20 @@ public class Method {
         }
 
         // debugging
-//        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-//            DexStmtNode node = methodNode.codeNode.stmts.get(i);
-//            if(node instanceof DexLabelStmtNode) {
-//                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
-//                System.out.println(i + ": " + labelNode.label);
-//            }
-//            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
-//                ConstStmtNode constStmtNode = (ConstStmtNode) node;
-//                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
-//            }
-//            else {
-//                System.out.println(i + ": " + node.op);
-//            }
-//        }
+        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+            DexStmtNode node = methodNode.codeNode.stmts.get(i);
+            if(node instanceof DexLabelStmtNode) {
+                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
+                System.out.println(i + ": " + labelNode.label);
+            }
+            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
+                ConstStmtNode constStmtNode = (ConstStmtNode) node;
+                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
+            }
+            else {
+                System.out.println(i + ": " + node.op);
+            }
+        }
 
         // classify try and catch blocks correctly
         if(methodNode.codeNode.tryStmts != null) {
@@ -206,8 +206,23 @@ public class Method {
         return paths;
     }
 
+    public Set<MethodSectionJump> getJumpsToSection(MethodSection section) {
+        Set<MethodSectionJump> jumps = new HashSet<>();
+        for(Map.Entry<MethodSection, List<MethodSectionJump>> entry : controlFlowGraph.adjacency.entrySet()) {
+            for(MethodSectionJump jump : entry.getValue()) {
+                if(jump.toSection.equals(section)) {
+                    jumps.add(jump);
+                }
+            }
+        }
+        return jumps;
+    }
+
     public ProgramSlice getBackwardsSlice(int criterionStmtIndex, int resultRegisterIndex) {
         Set<MethodExecutionPath> stringPaths = this.getExecutionPaths(0, criterionStmtIndex);
+        if(stringPaths.size() > 1000) {
+            return null;
+        }
         List<Set<Integer>> statementsSet = new ArrayList<>();
         ProgramSlice slice = new ProgramSlice(apkPath, file, this, criterionStmtIndex, resultRegisterIndex);
 

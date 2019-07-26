@@ -23,6 +23,8 @@ public class Main {
 
         database.addApplication(apkName);
 
+        ProgramSliceRepository slicesRepository = new ProgramSliceRepository();
+
         File jarFile = new File("data/" + apkName + ".jar");
         if(!jarFile.exists()) {
             // convert APK to .jar in order to run smali code
@@ -38,15 +40,16 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-//            if(!smaliFile.getPath().equals("data/barclays.apk-smali/u/aq.smali")) {
-//                continue;
-//            }
+            if(!smaliFile.getPath().equals("data/barclays.apk-smali/u/CiN.smali")) {
+                continue;
+            }
 
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 SmaliFileParser parser = new SmaliFileParser(apkName, smaliFile);
                 parser.parseFile();
-                parser.processStrings();
+                parser.processStrings(slicesRepository);
+                System.out.println("Total slices: " + slicesRepository.slices.size());
                 snippets.addAll(parser.snippets);
                 numStrings += parser.numStrings;
             } else {
