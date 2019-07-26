@@ -98,20 +98,20 @@ public class Method {
         }
 
         // debugging
-        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-            DexStmtNode node = methodNode.codeNode.stmts.get(i);
-            if(node instanceof DexLabelStmtNode) {
-                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
-                System.out.println(i + ": " + labelNode.label);
-            }
-            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
-                ConstStmtNode constStmtNode = (ConstStmtNode) node;
-                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
-            }
-            else {
-                System.out.println(i + ": " + node.op);
-            }
-        }
+//        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+//            DexStmtNode node = methodNode.codeNode.stmts.get(i);
+//            if(node instanceof DexLabelStmtNode) {
+//                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
+//                System.out.println(i + ": " + labelNode.label);
+//            }
+//            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
+//                ConstStmtNode constStmtNode = (ConstStmtNode) node;
+//                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
+//            }
+//            else {
+//                System.out.println(i + ": " + node.op);
+//            }
+//        }
 
         // classify try and catch blocks correctly
         if(methodNode.codeNode.tryStmts != null) {
@@ -175,7 +175,8 @@ public class Method {
         queue.add(new ImmutablePair<>(sourceSection, firstPath));
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
-            if(queue.size() >= 10000) {
+            if(queue.size() >= 100000) {
+                // TODO make sure execution paths return representitive paths!
                 return paths;
             }
 

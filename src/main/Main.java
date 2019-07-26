@@ -40,9 +40,9 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-            if(!smaliFile.getPath().equals("data/barclays.apk-smali/u/CiN.smali")) {
-                continue;
-            }
+//            if(!smaliFile.getPath().equals("data/barclays.apk-smali/u/CiN.smali")) {
+//                continue;
+//            }
 
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());

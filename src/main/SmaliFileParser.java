@@ -259,17 +259,22 @@ public class SmaliFileParser {
             if (methodNode.codeNode.stmts.size() == 0) {
                 continue;
             }
-            if(!methodNode.method.getName().equals("onReceive")) {
-                continue;
-            }
+//            if(!methodNode.method.getName().equals("onReceive")) {
+//                continue;
+//            }
 
             Method method = new Method(apkPath, smaliFile, methodNode);
             System.out.println("Processing method " + methodNode.method.getName());
 
+            Set<Pair<Integer, Integer>> stringRegisters = new HashSet<>();
             for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
-                Set<Pair<Integer, Integer>> stringRegisters = new HashSet<>();
-
                 DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
+
+                if(stmtNode.op == Op.RETURN_OBJECT && method.methodNode.method.getReturnType().equals("Ljava/lang/String;")) {
+                    Stmt1RNode returnStmtNode = (Stmt1RNode) stmtNode;
+                    stringRegisters.add(new ImmutablePair<>(stmtIndex - 1, returnStmtNode.a));
+                }
+
                 if(stmtNode instanceof MethodStmtNode) {
                     MethodStmtNode methodStmtNode = (MethodStmtNode) stmtNode;
 
@@ -310,38 +315,39 @@ public class SmaliFileParser {
                         }
                     }
                 }
+            }
 
-                for(Pair stringRegister : stringRegisters) {
+            for(Pair stringRegister : stringRegisters) {
+                if((int)stringRegister.getKey() >= 0) {
                     System.out.println("Processing from statement " + stringRegister.getKey() + " (reg: " + stringRegister.getValue() + ")");
                     ProgramSlice slice = new ProgramSlice(apkPath, smaliFile, method, (int)stringRegister.getKey(), (int)stringRegister.getValue());
                     slice.compute();
                     slices.add(slice);
-
                 }
             }
 
-            System.out.println("Slices before prune: " + slices.size());
+//            System.out.println("Slices before prune: " + slices.size());
 
             // prune by removing sub-slices
-            Set<ProgramSlice> toRemove = new HashSet<>();
-            for(int i = 0; i < slices.size(); i++) {
-                for(int j = 0; j < slices.size(); j++) {
-                    if(i == j) { continue; }
-
-                    // if the slices are equal, remove only one
-                    if(slices.get(i).extractedStatements.equals(slices.get(j).extractedStatements)) {
-                        if(i < j) {
-                            toRemove.add(slices.get(i));
-                        }
-                        continue;
-                    }
-
-                    if(slices.get(i).isSubslice(slices.get(j))) {
-                        toRemove.add(slices.get(i));
-                    }
-                }
-            }
-            slices.removeAll(toRemove);
+//            Set<ProgramSlice> toRemove = new HashSet<>();
+//            for(int i = 0; i < slices.size(); i++) {
+//                for(int j = 0; j < slices.size(); j++) {
+//                    if(i == j) { continue; }
+//
+//                    // if the slices are equal, remove only one
+//                    if(slices.get(i).extractedStatements.equals(slices.get(j).extractedStatements)) {
+//                        if(i < j) {
+//                            toRemove.add(slices.get(i));
+//                        }
+//                        continue;
+//                    }
+//
+//                    if(slices.get(i).isSubslice(slices.get(j))) {
+//                        toRemove.add(slices.get(i));
+//                    }
+//                }
+//            }
+//            slices.removeAll(toRemove);
             slicesRepository.addAll(slices);
 
             // decrypt

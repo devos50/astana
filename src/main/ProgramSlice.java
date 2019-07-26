@@ -29,6 +29,9 @@ public class ProgramSlice {
     }
 
     public void compute() {
+        Set<MethodExecutionPath> paths = method.getExecutionPaths(0, this.criterionStmtIndex);
+        System.out.println("paths: " + paths.size());
+
         // compute a program slice with a backwards BFS
         LinkedList<ProgramSliceIntermediateState> queue = new LinkedList<>();
         Set<Integer> allIncludedStatements = new HashSet<>();
@@ -188,6 +191,31 @@ public class ProgramSlice {
                         unresolved.add(typeStmtNode.b);
                     }
                 }
+                else if(stmtNode.op == Op.THROW) {
+                    // ignore throw
+                }
+                else if(stmtNode.op == Op.CHECK_CAST) {
+                    // ignore check-cast
+                }
+                else if(stmtNode.op == Op.CMP_LONG || stmtNode.op == Op.CMPL_DOUBLE || stmtNode.op == Op.CMPL_FLOAT ||
+                        stmtNode.op == Op.CMPG_DOUBLE || stmtNode.op == Op.CMPG_FLOAT) {
+                    Stmt3RNode castNode = (Stmt3RNode) stmtNode;
+                    if(unresolved.contains(castNode.a)) {
+                        includedStatements.add(currentStmtIndex);
+                        unresolved.remove(castNode.a);
+                        unresolved.add(castNode.b);
+                        unresolved.add(castNode.c);
+                    }
+                }
+                else if(stmtNode.op == Op.MOVE || stmtNode.op == Op.MOVE_OBJECT || stmtNode.op == Op.MOVE_OBJECT_FROM16 ||
+                        stmtNode.op == Op.MOVE_WIDE || stmtNode.op == Op.MOVE_WIDE_FROM16 || stmtNode.op == Op.MOVE_FROM16) {
+                    Stmt2RNode castNode = (Stmt2RNode) stmtNode;
+                    if(unresolved.contains(castNode.a)) {
+                        includedStatements.add(currentStmtIndex);
+                        unresolved.remove(castNode.a);
+                        unresolved.add(castNode.b);
+                    }
+                }
                 else {
                     throw new RuntimeException("Unknown statement type when performing backwards slice! " + stmtNode.toString() + ", " + stmtNode.op);
                 }
@@ -216,6 +244,7 @@ public class ProgramSlice {
             else {
                 for(MethodSectionJump jump : jumps) {
                     if(!currentState.jumpsTaken.contains(jump)) {
+//                        System.out.println("Adding jump " + jump + " to queue (size: " + queue.size() + ")");
                         ProgramSliceIntermediateState newState = currentState.copy();
                         newState.jumpsTaken.add(jump);
                         newState.unresolved = new HashSet<>();
@@ -233,8 +262,6 @@ public class ProgramSlice {
         for(int stmtIndex : includedStmtList) {
             extractedStatements.add(method.methodNode.codeNode.stmts.get(stmtIndex));
         }
-
-        System.out.println("All statements: " + allIncludedStatements);
     }
 
     public boolean isSubslice(ProgramSlice other) {
