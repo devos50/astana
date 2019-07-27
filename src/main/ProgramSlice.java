@@ -29,35 +29,18 @@ public class ProgramSlice {
     }
 
     public void compute() {
-        Set<MethodExecutionPath> paths = method.getExecutionPaths(0, this.criterionStmtIndex);
-        System.out.println("paths: " + paths.size());
-
-        // compute a program slice with a backwards BFS
-        LinkedList<ProgramSliceIntermediateState> queue = new LinkedList<>();
         Set<Integer> allIncludedStatements = new HashSet<>();
 
-        // backwards search
-        ProgramSliceIntermediateState initialState = new ProgramSliceIntermediateState(criterionStmtIndex);
-        initialState.startSection = this.method.getSectionForStatement(criterionStmtIndex);
-        initialState.unresolved = new HashSet<>();
-        initialState.unresolved.add(this.resultRegisterIndex);
-        initialState.jumpsTaken = new ArrayList<>();
-        initialState.includedStatements = new HashSet<>();
-        queue.add(initialState);
-
-        while(!queue.isEmpty()) {
-            ProgramSliceIntermediateState currentState = queue.remove();
-            Set<Integer> unresolved = currentState.unresolved;
-            MethodSection section = currentState.getCurrentSection();
-            Set<Integer> includedStatements = currentState.includedStatements;
-//            System.out.println("Considering section: " + section);
-
-            int currentStmtIndex = currentState.getBeginIndex();
+        for(int run = 0; run < 20; run++) { // TODO adapt!
+            // take random path through the method
+            int currentStmtIndex = criterionStmtIndex;
+            Set<Integer> unresolved = new HashSet<>();
+            unresolved.add(this.resultRegisterIndex);
             int moveNodeIndex = -1;
-            while(currentStmtIndex != section.beginIndex - 1) {
-                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
-//                System.out.println(stmtNode.op + " (" + currentStmtIndex + ")");
+            Set<Integer> includedStatements = new HashSet<>();
 
+            while(currentStmtIndex >= 0) {
+                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
                 if(stmtNode.op == Op.MOVE_RESULT || stmtNode.op == Op.MOVE_RESULT_OBJECT || stmtNode.op == Op.MOVE_RESULT_WIDE) {
                     // store the move node for when we encounter the invoke method
                     moveNodeIndex = currentStmtIndex;
@@ -226,6 +209,54 @@ public class ProgramSlice {
                     // we found all the variables we need
                     break;
                 }
+
+                // find how we can reach this node, make a random decision if there are multiple options
+                List<ControlFlowGraphNode> prevNodes = method.controlFlowGraph.getNode(currentStmtIndex).prevNodes;
+                ControlFlowGraphNode prevNode = prevNodes.get((new Random()).nextInt(prevNodes.size()));
+                currentStmtIndex = prevNode.stmtIndex;
+                // TODO do not take path twice!
+            }
+
+            // done - merge involved statements
+            allIncludedStatements.addAll(includedStatements);
+        }
+
+        List<Integer> includedStmtList = new ArrayList<>(allIncludedStatements);
+        Collections.sort(includedStmtList);
+        for(int stmtIndex : includedStmtList) {
+            extractedStatements.add(method.methodNode.codeNode.stmts.get(stmtIndex));
+        }
+    }
+
+    public void oldCompute() {
+        Set<MethodExecutionPath> paths = method.getExecutionPaths(0, this.criterionStmtIndex);
+        System.out.println("paths: " + paths.size());
+
+        // compute a program slice with a backwards BFS
+        LinkedList<ProgramSliceIntermediateState> queue = new LinkedList<>();
+        Set<Integer> allIncludedStatements = new HashSet<>();
+
+        // backwards search
+        ProgramSliceIntermediateState initialState = new ProgramSliceIntermediateState(criterionStmtIndex);
+        initialState.startSection = this.method.getSectionForStatement(criterionStmtIndex);
+        initialState.unresolved = new HashSet<>();
+        initialState.unresolved.add(this.resultRegisterIndex);
+        initialState.jumpsTaken = new ArrayList<>();
+        initialState.includedStatements = new HashSet<>();
+        queue.add(initialState);
+
+        while(!queue.isEmpty()) {
+            ProgramSliceIntermediateState currentState = queue.remove();
+            Set<Integer> unresolved = currentState.unresolved;
+            MethodSection section = currentState.getCurrentSection();
+            Set<Integer> includedStatements = currentState.includedStatements;
+//            System.out.println("Considering section: " + section);
+
+            int currentStmtIndex = currentState.getBeginIndex();
+            int moveNodeIndex = -1;
+            while(currentStmtIndex != section.beginIndex - 1) {
+                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+//                System.out.println(stmtNode.op + " (" + currentStmtIndex + ")");
 
                 currentStmtIndex--;
             }

@@ -1,80 +1,111 @@
 package main;
 
+
 import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.TryCatchNode;
+import com.googlecode.d2j.node.insn.DexLabelStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
 import com.googlecode.d2j.node.insn.PackedSwitchStmtNode;
 import com.googlecode.d2j.reader.Op;
 
+import javax.naming.ldap.Control;
 import java.util.*;
 
 public class ControlFlowGraph {
-    public Map<MethodSection, List<MethodSectionJump>> adjacency = new HashMap<>();
+    public Map<Integer, ControlFlowGraphNode> nodes = new HashMap<>();
+    public Map<ControlFlowGraphNode, List<ControlFlowGraphNode>> adjacency = new HashMap<>();
+    public Method method;
 
-    public static ControlFlowGraph build(Method method) {
-        // TODO handle switches!
+    public ControlFlowGraph(Method method) {
+        this.method = method;
+    }
 
-        ControlFlowGraph graph = new ControlFlowGraph();
+    public ControlFlowGraphNode addNewNode(int stmtIndex) {
+        ControlFlowGraphNode newNode = new ControlFlowGraphNode(stmtIndex);
+        nodes.put(newNode.stmtIndex, newNode);
+        adjacency.put(newNode, new ArrayList<>());
+        return newNode;
+    }
 
-        // create nodes
-        for(MethodSection section : method.sections) {
-            graph.adjacency.put(section, new ArrayList<>());
+    public ControlFlowGraphNode getNode(int stmtIndex) {
+        if(!nodes.containsKey(stmtIndex)) {
+            // create the node
+            return addNewNode(stmtIndex);
         }
+        return nodes.get(stmtIndex);
+    }
 
-        // for each section, determine where we can possibly go
-        for(int sectionIndex = 0; sectionIndex < method.sections.size(); sectionIndex++) {
-            MethodSection currentSection = method.sections.get(sectionIndex);
-//            System.out.println("Section: " + currentSection);
-            for(int stmtIndex = currentSection.beginIndex; stmtIndex < currentSection.endIndex; stmtIndex++) {
-                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
+    public List<ControlFlowGraphNode> getNextNodes(int stmtIndex) {
+        return adjacency.get(getNode(stmtIndex));
+    }
 
-                if(stmtNode instanceof JumpStmtNode) {
-                    JumpStmtNode jumpStmtNode = (JumpStmtNode) stmtNode;
-                    MethodSection jumpSection = method.getSectionForLabel(jumpStmtNode.label);
-                    if(jumpSection == null) {
-                        throw new RuntimeException("Cannot find section where jump to is made! (" + jumpStmtNode.label + ")");
-                    }
+    public ControlFlowGraphNode getNextStmtNode(int stmtIndex) {
+        int currentStmtIndex = stmtIndex + 1;
+        DexStmtNode currentNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+        while(currentNode instanceof DexLabelStmtNode) {
+            currentStmtIndex++;
+            currentNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+        }
+        return getNode(currentStmtIndex);
+    }
 
-                    MethodSectionJump jump = new MethodSectionJump(currentSection, jumpSection, stmtIndex);
-                    if(!graph.adjacency.get(currentSection).contains(jump)) {
-                        graph.adjacency.get(currentSection).add(jump);
-                    }
-                }
-                else if(stmtNode instanceof PackedSwitchStmtNode) {
-                    PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) stmtNode;
-                    for(DexLabel label : switchNode.labels) {
-                        MethodSection jumpSection = method.getSectionForLabel(label);
-                        if(jumpSection == null) {
-                            throw new RuntimeException("Cannot find section where jump to is made! (" + label + ")");
-                        }
+    public void build() {
+        // add the initial root node
+        ControlFlowGraphNode rootNode = addNewNode(-1);
+        ControlFlowGraphNode firstNode = addNewNode(0);
+        adjacency.get(rootNode).add(firstNode);
+        firstNode.prevNodes.add(rootNode);
 
-                        MethodSectionJump jump = new MethodSectionJump(currentSection, jumpSection, stmtIndex);
-                        if(!graph.adjacency.get(currentSection).contains(jump)) {
-                            graph.adjacency.get(currentSection).add(jump);
-                        }
-                    }
+        for(int currentStmtIndex = 0; currentStmtIndex < method.methodNode.codeNode.stmts.size(); currentStmtIndex++) {
+            DexStmtNode currentStmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+            if(currentStmtNode instanceof DexLabelStmtNode) {
+                continue; // we cannot go anywhere from this node
+            }
+            else if(currentStmtNode.op == Op.RETURN || currentStmtNode.op == Op.RETURN_OBJECT || currentStmtNode.op == Op.RETURN_VOID || currentStmtNode.op == Op.RETURN_WIDE || currentStmtNode.op == Op.THROW) {
+                // we cannot go anywhere from this node
+                continue;
+            }
+            else if(currentStmtNode instanceof JumpStmtNode) {
+                // this is a conditional - follow it or not
+                JumpStmtNode jumpStmtNode = (JumpStmtNode) currentStmtNode;
+                MethodSection gotoSection = method.getSectionForLabel(jumpStmtNode.label);
+                ControlFlowGraphNode fromNode = getNode(currentStmtIndex);
+                ControlFlowGraphNode toNode = getNode(gotoSection.beginIndex);
+                adjacency.get(fromNode).add(toNode);
+                toNode.prevNodes.add(fromNode);
+
+                if(currentStmtNode.op != Op.GOTO && currentStmtNode.op != Op.GOTO_16 && currentStmtNode.op != Op.GOTO_32) {
+                    // we can also go to the next statement
+                    ControlFlowGraphNode nextNode = getNextStmtNode(currentStmtIndex);
+                    adjacency.get(fromNode).add(nextNode);
+                    nextNode.prevNodes.add(fromNode);
                 }
             }
-
-            // can we go to the next section?
-            if(sectionIndex != method.sections.size() - 1) {
-                DexStmtNode lastStmtNodeInSection = method.methodNode.codeNode.stmts.get(currentSection.endIndex - 1);
-                if(lastStmtNodeInSection.op != Op.THROW && lastStmtNodeInSection.op != Op.GOTO && lastStmtNodeInSection.op != Op.GOTO_16 &&
-                        lastStmtNodeInSection.op != Op.GOTO_32 && lastStmtNodeInSection.op != Op.RETURN && lastStmtNodeInSection.op != Op.RETURN_OBJECT &&
-                        lastStmtNodeInSection.op != Op.RETURN_VOID && lastStmtNodeInSection.op != Op.RETURN_WIDE) {
-                    // we can indeed reach the next section from the current one
-                    MethodSection nextSection = method.sections.get(sectionIndex + 1);
-                    MethodSectionJump jump = new MethodSectionJump(currentSection, nextSection, currentSection.endIndex - 1);
-
-                    if(!graph.adjacency.get(currentSection).contains(jump)) {
-                        graph.adjacency.get(currentSection).add(jump);
-                    }
+            else if(currentStmtNode instanceof PackedSwitchStmtNode) {
+                PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) currentStmtNode;
+                ControlFlowGraphNode fromNode = getNode(currentStmtIndex);
+                for(DexLabel label : switchNode.labels) {
+                    MethodSection toSection = method.getSectionForLabel(label);
+                    ControlFlowGraphNode toNode = getNode(toSection.beginIndex);
+                    adjacency.get(fromNode).add(toNode);
+                    toNode.prevNodes.add(fromNode);
                 }
+                ControlFlowGraphNode nextNode = getNextStmtNode(currentStmtIndex);
+                adjacency.get(fromNode).add(nextNode);
+                nextNode.prevNodes.add(fromNode);
+            }
+            else {
+                // we can go to the next statement
+                ControlFlowGraphNode fromNode = getNode(currentStmtIndex);
+                ControlFlowGraphNode nextNode = getNextStmtNode(currentStmtIndex);
+                adjacency.get(fromNode).add(nextNode);
+                nextNode.prevNodes.add(fromNode);
             }
         }
 
         // consider try/catches
+        // for simplicity, just make a connection to the last statement of all try sections
         if(method.methodNode.codeNode.tryStmts != null) {
             for(TryCatchNode tryCatchNode : method.methodNode.codeNode.tryStmts) {
                 MethodSection startSection = method.getSectionForLabel(tryCatchNode.start);
@@ -82,14 +113,13 @@ public class ControlFlowGraph {
                 Set<MethodSection> trySections = method.getSectionsRange(startSection, endSection);
                 for(DexLabel handler : tryCatchNode.handler) {
                     MethodSection catchSection = method.getSectionForLabel(handler);
+                    ControlFlowGraphNode toNode = getNode(catchSection.beginIndex);
                     for(MethodSection trySection : trySections) {
-                        MethodSectionJump jump = new MethodSectionJump(trySection, catchSection, -1);
-                        graph.adjacency.get(trySection).add(jump);
+                        ControlFlowGraphNode fromNode = getNode(trySection.endIndex - 1);
+                        adjacency.get(fromNode).add(toNode);
                     }
                 }
             }
         }
-
-        return graph;
     }
 }

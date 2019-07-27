@@ -47,7 +47,6 @@ public class Main {
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 SmaliFileParser parser = new SmaliFileParser(apkName, smaliFile);
-                parser.parseFile();
                 parser.processStrings(slicesRepository);
                 System.out.println("Total slices: " + slicesRepository.slices.size());
                 snippets.addAll(parser.snippets);

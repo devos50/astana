@@ -98,20 +98,21 @@ public class Method {
         }
 
         // debugging
-//        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-//            DexStmtNode node = methodNode.codeNode.stmts.get(i);
-//            if(node instanceof DexLabelStmtNode) {
-//                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
-//                System.out.println(i + ": " + labelNode.label);
-//            }
-//            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
-//                ConstStmtNode constStmtNode = (ConstStmtNode) node;
-//                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
-//            }
-//            else {
-//                System.out.println(i + ": " + node.op);
-//            }
-//        }
+        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+            DexStmtNode node = methodNode.codeNode.stmts.get(i);
+            if(node instanceof DexLabelStmtNode) {
+                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
+                System.out.println(i + ": " + labelNode.label);
+            }
+            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
+                ConstStmtNode constStmtNode = (ConstStmtNode) node;
+                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
+            }
+            else {
+                System.out.println(i + ": " + node.op);
+            }
+        }
+        System.out.println("---");
 
         // classify try and catch blocks correctly
         if(methodNode.codeNode.tryStmts != null) {
@@ -129,9 +130,15 @@ public class Method {
                 }
             }
         }
+    }
 
-        // build CFG
-        controlFlowGraph = ControlFlowGraph.build(this);
+    public String getName() {
+        return methodNode.method.getName();
+    }
+
+    public void buildCFG() {
+        controlFlowGraph = new ControlFlowGraph(this);
+        controlFlowGraph.build();
     }
 
     public Set<MethodSection> getSectionsRange(MethodSection from, MethodSection to) {
@@ -189,33 +196,33 @@ public class Method {
             }
 
             // get outgoing edges and add them to the queue
-            for(MethodSectionJump jump : controlFlowGraph.adjacency.get(currentNode)) {
-                if(!currentPath.path.contains(jump)) {
-
-                    // can we even make the jump?
-                    if(currentNode == sourceSection && jump.jumpStmtIndex != -1 && sourceStmtIndex > jump.jumpStmtIndex) {
-                        continue;
-                    }
-
-                    MethodExecutionPath copied = currentPath.copy();
-                    copied.path.add(jump);
-                    copied.sectionsVisited.add(jump.toSection);
-                    queue.add(new ImmutablePair<>(jump.toSection, copied));
-                }
-            }
+//            for(MethodSectionJump jump : controlFlowGraph.adjacency.get(currentNode)) {
+//                if(!currentPath.path.contains(jump)) {
+//
+//                    // can we even make the jump?
+//                    if(currentNode == sourceSection && jump.jumpStmtIndex != -1 && sourceStmtIndex > jump.jumpStmtIndex) {
+//                        continue;
+//                    }
+//
+//                    MethodExecutionPath copied = currentPath.copy();
+//                    copied.path.add(jump);
+//                    copied.sectionsVisited.add(jump.toSection);
+//                    queue.add(new ImmutablePair<>(jump.toSection, copied));
+//                }
+//            }
         }
         return paths;
     }
 
     public Set<MethodSectionJump> getJumpsToSection(MethodSection section) {
         Set<MethodSectionJump> jumps = new HashSet<>();
-        for(Map.Entry<MethodSection, List<MethodSectionJump>> entry : controlFlowGraph.adjacency.entrySet()) {
-            for(MethodSectionJump jump : entry.getValue()) {
-                if(jump.toSection.equals(section)) {
-                    jumps.add(jump);
-                }
-            }
-        }
+//        for(Map.Entry<MethodSection, List<MethodSectionJump>> entry : controlFlowGraph.adjacency.entrySet()) {
+//            for(MethodSectionJump jump : entry.getValue()) {
+//                if(jump.toSection.equals(section)) {
+//                    jumps.add(jump);
+//                }
+//            }
+//        }
         return jumps;
     }
 

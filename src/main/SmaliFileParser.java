@@ -16,12 +16,34 @@ public class SmaliFileParser {
     private final String apkPath;
     private final File smaliFile;
     public DexClassNode rootNode;
+    public List<Method> methods = new ArrayList<>();
     public int numStrings = 0;
     public List<StringSnippet> snippets = new ArrayList<>();
 
-    public SmaliFileParser(String apkPath, File smaliFile) {
+    public SmaliFileParser(String apkPath, File smaliFile) throws FileNotFoundException {
         this.apkPath = apkPath;
         this.smaliFile = smaliFile;
+
+        InputStream input = new FileInputStream(smaliFile);
+        try {
+            this.rootNode = Smali.smaliFile2Node("test.smali", input);
+        } catch (Exception e) {
+            System.out.println("Could not parse file " + smaliFile.getPath());
+        }
+
+        for (DexMethodNode methodNode : rootNode.methods) {
+            Method method = new Method(apkPath, smaliFile, methodNode);
+            methods.add(method);
+        }
+    }
+
+    public Method getMethod(String methodName) {
+        for(Method method : methods) {
+            if(method.getName().equals(methodName)) {
+                return method;
+            }
+        }
+        return null;
     }
 
     public void processSnippet(StringSnippet snippet) {
@@ -211,41 +233,32 @@ public class SmaliFileParser {
         queue.add(rootSection);
 
         // analyze the section that contains the string init
-        while(!queue.isEmpty()) {
-            MethodSection currentSection = queue.remove();
-            List<MethodSectionJump> adjacent = snippet.method.controlFlowGraph.adjacency.get(currentSection);
-
-            for(MethodSectionJump jump : adjacent) {
-                if(jump.jumpStmtIndex == -1) {
-                    // This is a jump made by a catch. If the string init is in a try block, then the decryption method will (most likely) be not be in the catch block.
-                    // Therefore, we ignore this jump.
-                    continue;
-                }
-
-                MethodSection adjacentSection = jump.toSection;
-                if(!visited.contains(adjacentSection)) {
-                    for(int stmtIndex = adjacentSection.beginIndex; stmtIndex < adjacentSection.endIndex; stmtIndex++) {
-                        Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method, snippet.stringInitIndex, stmtIndex);
-                        if(pair.getKey() != -1) {
-                            return pair;
-                        }
-                    }
-
-                    visited.add(adjacentSection);
-                    queue.add(adjacentSection);
-                }
-            }
-        }
+//        while(!queue.isEmpty()) {
+//            MethodSection currentSection = queue.remove();
+//            List<MethodSectionJump> adjacent = snippet.method.controlFlowGraph.adjacency.get(currentSection);
+//
+//            for(MethodSectionJump jump : adjacent) {
+//                if(jump.jumpStmtIndex == -1) {
+//                    // This is a jump made by a catch. If the string init is in a try block, then the decryption method will (most likely) be not be in the catch block.
+//                    // Therefore, we ignore this jump.
+//                    continue;
+//                }
+//
+//                MethodSection adjacentSection = jump.toSection;
+//                if(!visited.contains(adjacentSection)) {
+//                    for(int stmtIndex = adjacentSection.beginIndex; stmtIndex < adjacentSection.endIndex; stmtIndex++) {
+//                        Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method, snippet.stringInitIndex, stmtIndex);
+//                        if(pair.getKey() != -1) {
+//                            return pair;
+//                        }
+//                    }
+//
+//                    visited.add(adjacentSection);
+//                    queue.add(adjacentSection);
+//                }
+//            }
+//        }
         return new ImmutablePair<>(-1, -1);
-    }
-
-    public void parseFile() throws FileNotFoundException {
-        InputStream input = new FileInputStream(smaliFile);
-        try {
-            this.rootNode = Smali.smaliFile2Node("test.smali", input);
-        } catch (Exception e) {
-            System.out.println("Could not parse file " + smaliFile.getPath());
-        }
     }
 
     public void processStrings(ProgramSliceRepository slicesRepository) throws IOException {
