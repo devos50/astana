@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Paths;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -48,5 +49,38 @@ public class TestProgramSlice {
         assertTrue(slice.extractedStatements.contains(method.methodNode.codeNode.stmts.get(0)));
         assertTrue(slice.extractedStatements.contains(method.methodNode.codeNode.stmts.get(2)));
         assertTrue(slice.extractedStatements.contains(method.methodNode.codeNode.stmts.get(3)));
+    }
+
+    @Test
+    public void testSliceIfStatement() {
+        Method method = parser.getMethod("method3");
+        method.buildCFG();
+
+        ProgramSlice slice = getSliceObject(method, 10, 1);
+        slice.compute();
+        assertEquals(7, slice.extractedStatements.size());
+        assertFalse(slice.extractedStatements.contains(method.methodNode.codeNode.stmts.get(2)));
+        assertFalse(slice.extractedStatements.contains(method.methodNode.codeNode.stmts.get(6)));
+    }
+
+    @Test
+    public void TestUnnecessaryIf() {
+        Method method = parser.getMethod("method4");
+        method.buildCFG();
+
+        ProgramSlice slice = getSliceObject(method, 9, 2);
+        slice.compute();
+        System.out.println(slice.extractedStatements);
+    }
+
+    @Test
+    public void testComplexSlice() {
+        Method method = parser.getMethod("method5");
+        method.buildCFG();
+
+        ProgramSlice slice = getSliceObject(method, 36, 1);
+        slice.compute();
+
+        assertEquals(35, slice.extractedStatements.size());
     }
 }

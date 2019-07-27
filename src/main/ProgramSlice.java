@@ -180,6 +180,9 @@ public class ProgramSlice {
                 else if(stmtNode.op == Op.CHECK_CAST) {
                     // ignore check-cast
                 }
+                else if(stmtNode.op == Op.RETURN || stmtNode.op == Op.RETURN_OBJECT || stmtNode.op == Op.RETURN_VOID) {
+                    // ignore return statements
+                }
                 else if(stmtNode.op == Op.CMP_LONG || stmtNode.op == Op.CMPL_DOUBLE || stmtNode.op == Op.CMPL_FLOAT ||
                         stmtNode.op == Op.CMPG_DOUBLE || stmtNode.op == Op.CMPG_FLOAT) {
                     Stmt3RNode castNode = (Stmt3RNode) stmtNode;
@@ -217,77 +220,29 @@ public class ProgramSlice {
                 // TODO do not take path twice!
             }
 
-            // done - merge involved statements
+            // done - include section labels
+            Set<Integer> sectionLabelsIndex = new HashSet<>();
+
+            for(Integer stmtIndex : includedStatements) {
+                MethodSection section = method.getSectionForStatement(stmtIndex);
+                if(section.beginIndex != 0) {
+                    sectionLabelsIndex.add(section.beginIndex - 1);
+                }
+
+                // if it is a jump, include the label where we are jumping to
+                DexStmtNode currentNode = method.methodNode.codeNode.stmts.get(stmtIndex);
+                if(currentNode instanceof JumpStmtNode) {
+                    JumpStmtNode jumpNode = (JumpStmtNode) currentNode;
+                    sectionLabelsIndex.add(method.getSectionForLabel(jumpNode.label).beginIndex - 1);
+                }
+            }
+            includedStatements.addAll(sectionLabelsIndex);
+
+            // merge involved statements
             allIncludedStatements.addAll(includedStatements);
         }
 
-        List<Integer> includedStmtList = new ArrayList<>(allIncludedStatements);
-        Collections.sort(includedStmtList);
-        for(int stmtIndex : includedStmtList) {
-            extractedStatements.add(method.methodNode.codeNode.stmts.get(stmtIndex));
-        }
-    }
-
-    public void oldCompute() {
-        Set<MethodExecutionPath> paths = method.getExecutionPaths(0, this.criterionStmtIndex);
-        System.out.println("paths: " + paths.size());
-
-        // compute a program slice with a backwards BFS
-        LinkedList<ProgramSliceIntermediateState> queue = new LinkedList<>();
-        Set<Integer> allIncludedStatements = new HashSet<>();
-
-        // backwards search
-        ProgramSliceIntermediateState initialState = new ProgramSliceIntermediateState(criterionStmtIndex);
-        initialState.startSection = this.method.getSectionForStatement(criterionStmtIndex);
-        initialState.unresolved = new HashSet<>();
-        initialState.unresolved.add(this.resultRegisterIndex);
-        initialState.jumpsTaken = new ArrayList<>();
-        initialState.includedStatements = new HashSet<>();
-        queue.add(initialState);
-
-        while(!queue.isEmpty()) {
-            ProgramSliceIntermediateState currentState = queue.remove();
-            Set<Integer> unresolved = currentState.unresolved;
-            MethodSection section = currentState.getCurrentSection();
-            Set<Integer> includedStatements = currentState.includedStatements;
-//            System.out.println("Considering section: " + section);
-
-            int currentStmtIndex = currentState.getBeginIndex();
-            int moveNodeIndex = -1;
-            while(currentStmtIndex != section.beginIndex - 1) {
-                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
-//                System.out.println(stmtNode.op + " (" + currentStmtIndex + ")");
-
-                currentStmtIndex--;
-            }
-
-            // include section label
-            if(currentStmtIndex >= 0) {
-                includedStatements.add(currentStmtIndex);
-            }
-
-            // are we done?
-            Set<MethodSectionJump> jumps = method.getJumpsToSection(section);
-            if(unresolved.size() == 0 || jumps.size() == 0) {
-                unresolvedAtEnd.addAll(unresolved);
-                allIncludedStatements.addAll(includedStatements);
-            }
-            else {
-                for(MethodSectionJump jump : jumps) {
-                    if(!currentState.jumpsTaken.contains(jump)) {
-//                        System.out.println("Adding jump " + jump + " to queue (size: " + queue.size() + ")");
-                        ProgramSliceIntermediateState newState = currentState.copy();
-                        newState.jumpsTaken.add(jump);
-                        newState.unresolved = new HashSet<>();
-                        newState.unresolved.addAll(unresolved);
-                        newState.includedStatements = new HashSet<>();
-                        newState.includedStatements.addAll(includedStatements);
-                        queue.add(newState);
-                    }
-                }
-            }
-        }
-
+        System.out.println(allIncludedStatements);
         List<Integer> includedStmtList = new ArrayList<>(allIncludedStatements);
         Collections.sort(includedStmtList);
         for(int stmtIndex : includedStmtList) {
