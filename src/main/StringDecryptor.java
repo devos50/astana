@@ -94,7 +94,7 @@ public class StringDecryptor {
         Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/lloyds_original.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
+        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/advanced-string-deobfuscation/data/abnamro.apk.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
         String line = null;
         String finalString = "";
         try {
@@ -108,11 +108,11 @@ public class StringDecryptor {
                 finalString += line;
             }
 
-//            line = null;
-//            reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-//            while ((line = reader.readLine()) != null) {
-//                System.out.println(line);
-//            }
+            line = null;
+            reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
 
             if(result == 0 && finalString.length() > 0) {
                 snippet.decryptedString = finalString;

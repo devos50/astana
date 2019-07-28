@@ -45,7 +45,7 @@ public class RegisterDependencyGraph {
             if(stmtNode instanceof MethodStmtNode) {
                 return index;
             }
-            else if(stmtNode.op == Op.FILLED_NEW_ARRAY) {
+            else if(stmtNode.op == Op.FILLED_NEW_ARRAY || stmtNode.op == Op.FILLED_NEW_ARRAY_RANGE) {
                 return index;
             }
         }
@@ -152,7 +152,7 @@ public class RegisterDependencyGraph {
 
                 int prevMethodStmtIndex = getCorrespondingMethodNode(currentStmtIndex);
                 if(prevMethodStmtIndex == -1) {
-                    throw new RuntimeException("Could not find corresponding method for move-result(-object)!");
+                    throw new RuntimeException("Could not find corresponding method for move-result(-object)! " + currentStmtIndex);
                 }
 
                 int[] args = new int[0];
@@ -237,7 +237,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, dependencyRegister);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR || stmtNode.op == Op.APUT_BYTE) {
+            else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR || stmtNode.op == Op.APUT_BYTE || stmtNode.op == Op.APUT_WIDE) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.a));
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.c));
@@ -262,7 +262,7 @@ public class RegisterDependencyGraph {
                     stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT || stmtNode.op == Op.AND_INT || stmtNode.op == Op.XOR_INT || stmtNode.op == Op.REM_INT ||
                     stmtNode.op == Op.SHR_LONG || stmtNode.op == Op.DIV_INT || stmtNode.op == Op.SUB_DOUBLE || stmtNode.op == Op.SHL_INT || stmtNode.op == Op.SHL_LONG ||
                     stmtNode.op == Op.OR_LONG || stmtNode.op == Op.AND_LONG || stmtNode.op == Op.DIV_LONG || stmtNode.op == Op.ADD_LONG || stmtNode.op == Op.XOR_LONG ||
-                    stmtNode.op == Op.REM_LONG) {
+                    stmtNode.op == Op.REM_LONG || stmtNode.op == Op.MUL_LONG) {
                 Stmt3RNode castStmtNode = (Stmt3RNode) stmtNode;
                 RegisterDependencyNode oldRegisterA = getActiveRegister(castStmtNode.b);
                 RegisterDependencyNode oldRegisterB = getActiveRegister(castStmtNode.c);
@@ -333,6 +333,9 @@ public class RegisterDependencyGraph {
             }
             else if(stmtNode instanceof PackedSwitchStmtNode) {
                 // TODO ignore packed switches for now!
+            }
+            else if(stmtNode.op == Op.NOP) {
+                // TODO ignore nops
             }
             else {
                 throw new RuntimeException("Unknown statement type when building dependency graph! " + stmtNode.toString() + ", " + stmtNode.op);
