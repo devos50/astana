@@ -244,7 +244,7 @@ public class RegisterDependencyGraph {
                 statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.b));
             }
             else if(stmtNode.op == Op.AGET_WIDE || stmtNode.op == Op.AGET || stmtNode.op == Op.AGET_BOOLEAN ||
-                    stmtNode.op == Op.AGET_OBJECT || stmtNode.op == Op.AGET_BYTE || stmtNode.op == Op.AGET_CHAR) {
+                    stmtNode.op == Op.AGET_OBJECT || stmtNode.op == Op.AGET_BYTE || stmtNode.op == Op.AGET_CHAR || stmtNode.op == Op.AGET_SHORT) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.a), getActiveRegister(castNode.b));
                 statementToRegister.get(currentStmtIndex).add(getActiveRegister(castNode.a));
@@ -298,7 +298,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, oldRegisterSrc);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.IPUT_OBJECT || stmtNode.op == Op.IPUT_BOOLEAN || stmtNode.op == Op.IPUT || stmtNode.op == Op.IPUT_WIDE) {
+            else if(stmtNode.op == Op.IPUT_OBJECT || stmtNode.op == Op.IPUT_BOOLEAN || stmtNode.op == Op.IPUT || stmtNode.op == Op.IPUT_WIDE || stmtNode.op == Op.IPUT_SHORT || stmtNode.op == Op.IPUT_BYTE) {
                 // TODO ignore iput for now!
             }
             else if(stmtNode.op == Op.FILLED_NEW_ARRAY || stmtNode.op == Op.FILLED_NEW_ARRAY_RANGE) {
