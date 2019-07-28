@@ -20,16 +20,22 @@ import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.util.ArrayList;
 
-import static com.googlecode.d2j.DexConstants.ACC_PUBLIC;
-import static com.googlecode.d2j.DexConstants.ACC_STATIC;
+import static com.googlecode.d2j.DexConstants.*;
 
 public class StringDecryptor {
 
     public static void decrypt(StringSnippet snippet) throws IOException {
         System.out.println("Original string: " + snippet.getString() + " (l: " + snippet.getString().length() + ", " + snippet.file.getPath() + ")");
-        String[] paramTypes = {"[Ljava/lang/String;"};
-        Method m = new Method("LIsolated", "main", paramTypes, "V");
-        DexMethodNode mn = new DexMethodNode(ACC_PUBLIC | ACC_STATIC, m);
+
+        String methodName = snippet.method.methodNode.method.getName();
+
+        // create a method that is called by the main method
+        Method m = new Method(snippet.method.methodNode.method.getOwner(), methodName, new String[]{}, "V");
+        int flags = ACC_PUBLIC | ACC_STATIC;
+        if(methodName.equals("<clinit>")) {
+            flags |= ACC_CONSTRUCTOR;
+        }
+        DexMethodNode mn = new DexMethodNode(flags, m);
         DexCodeNode cn = new DexCodeNode();
         cn.stmts = snippet.extractedStatements;
         mn.codeNode = cn;
@@ -49,7 +55,7 @@ public class StringDecryptor {
         FieldStmtNode fsn = new FieldStmtNode(Op.SGET_OBJECT, printReg, 0, f);
         cn.stmts.add(fsn);
 
-        paramTypes = new String[]{"Ljava/lang/String;"};
+        String[] paramTypes = new String[]{"Ljava/lang/String;"};
         Method printMethod = new Method("Ljava/io/PrintStream;", "println", paramTypes, "V");
         int[] args = {printReg, snippet.stringResultRegister};
         MethodStmtNode msn = new MethodStmtNode(Op.INVOKE_VIRTUAL, args, printMethod);
@@ -59,10 +65,26 @@ public class StringDecryptor {
         cn.stmts.add(returnVoidStmt);
         cn.visitRegister(30);
 
+        // create the main method that calls the method we created
+        paramTypes = new String[]{"[Ljava/lang/String;"};
+        Method mainMethod = new Method(snippet.method.methodNode.method.getOwner(), "main", paramTypes, "V");
+        DexMethodNode mainMethodNode = new DexMethodNode(ACC_PUBLIC | ACC_STATIC, mainMethod);
+        DexCodeNode mainCodeNode = new DexCodeNode();
+
+        MethodStmtNode mainMethodCall = new MethodStmtNode(Op.INVOKE_STATIC, new int[]{}, m);
+        mainMethodNode.codeNode = mainCodeNode;
+        if(!methodName.equals("<clinit>")) {
+            mainCodeNode.stmts.add(mainMethodCall);
+        }
+        returnVoidStmt = new Stmt0RNode(Op.RETURN_VOID);
+        mainCodeNode.stmts.add(returnVoidStmt);
+        mainCodeNode.visitRegister(30);
+
         // create the class
-        DexClassNode classNode = new DexClassNode(ACC_PUBLIC, "LIsolated;", "Ljava/lang/Object;", null);
+        DexClassNode classNode = new DexClassNode(ACC_PUBLIC, snippet.method.methodNode.method.getOwner(), "Ljava/lang/Object;", null);
         classNode.methods = new ArrayList<>();
         classNode.methods.add(mn);
+        classNode.methods.add(mainMethodNode);
 
         // convert to smali
         BaksmaliDumper dumper = new BaksmaliDumper(false, true);
@@ -94,7 +116,9 @@ public class StringDecryptor {
         Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
 
         // run the jar
-        Process p = Runtime.getRuntime().exec("java -cp /Users/martijndevos/Documents/advanced-string-deobfuscation/data/abnamro.apk.jar:temp/isolated.jar:temp Isolated 2>/dev/null");
+        String className = snippet.method.methodNode.method.getOwner();
+        className = className.substring(1, className.length() - 1).replace("/", ".");
+        Process p = Runtime.getRuntime().exec("java -cp temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null");
         String line = null;
         String finalString = "";
         try {
@@ -114,7 +138,10 @@ public class StringDecryptor {
                 System.out.println(line);
             }
 
+            if(result != 0) { System.exit(1); }
+
             if(result == 0 && finalString.length() > 0) {
+                System.out.println("RESULT: " + finalString);
                 snippet.decryptedString = finalString;
                 snippet.decryptionSuccessful = true;
             }
