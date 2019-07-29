@@ -1,12 +1,17 @@
 package main;
 
+import com.googlecode.d2j.dex.Dex2jar;
+import com.googlecode.d2j.reader.BaseDexFileReader;
+import com.googlecode.d2j.reader.MultiDexFileReader;
 import com.googlecode.d2j.smali.BaksmaliCmd;
+import com.googlecode.dex2jar.tools.BaksmaliBaseDexExceptionHandler;
 import com.googlecode.dex2jar.tools.Dex2jarCmd;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 import smile.clustering.KMeans;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -16,17 +21,22 @@ public class Main {
 
     public static void processApk(File apkFile) throws SQLException, IOException {
         String apkName = apkFile.getName();
-//        if(database.isPreprocessed(apkName)) {
-//            System.out.println("APK " + apkName + " is already processed - ignoring");
-//            return;
-//        }
+        if(database.isPreprocessed(apkName)) {
+            database.printCharacterDistribution();
+
+            System.out.println("APK " + apkName + " is already processed - ignoring");
+            return;
+        }
 
         database.addApplication(apkName);
 
         File jarFile = new File("data/" + apkName + ".jar");
         if(!jarFile.exists()) {
             // convert APK to .jar in order to run smali code
-            new Dex2jarCmd().doMain(apkFile.getPath(), "-o", "data/" + apkName + ".jar", "-n");
+
+            BaseDexFileReader reader = MultiDexFileReader.open(Files.readAllBytes(apkFile.toPath()));
+            BaksmaliBaseDexExceptionHandler handler = new BaksmaliBaseDexExceptionHandler();
+            Dex2jar.from(reader).withExceptionHandler(handler).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(true).to(jarFile.toPath());
         }
 
         File smaliFilesPath = new File("data/" + apkName + "-smali");
@@ -44,6 +54,7 @@ public class Main {
 
             // skip some well-known libraries
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/kotlin") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/android") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/firebase") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/butterknife") &&

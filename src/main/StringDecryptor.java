@@ -143,7 +143,7 @@ public class StringDecryptor {
         // run the jar
         String className = snippet.method.methodNode.method.getOwner();
         className = className.substring(1, className.length() - 1).replace("/", ".");
-        Process p = Runtime.getRuntime().exec("java -noverify -cp temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null");
+        Process p = Runtime.getRuntime().exec("gtimeout 2 java -noverify -cp data/AndroidStubs.jar:temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null");
         String line = null;
         String finalString = "";
         try {

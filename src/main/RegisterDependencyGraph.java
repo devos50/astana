@@ -262,7 +262,8 @@ public class RegisterDependencyGraph {
                     stmtNode.op == Op.ADD_INT || stmtNode.op == Op.OR_INT || stmtNode.op == Op.AND_INT || stmtNode.op == Op.XOR_INT || stmtNode.op == Op.REM_INT ||
                     stmtNode.op == Op.SHR_LONG || stmtNode.op == Op.DIV_INT || stmtNode.op == Op.SUB_DOUBLE || stmtNode.op == Op.SHL_INT || stmtNode.op == Op.SHL_LONG ||
                     stmtNode.op == Op.OR_LONG || stmtNode.op == Op.AND_LONG || stmtNode.op == Op.DIV_LONG || stmtNode.op == Op.ADD_LONG || stmtNode.op == Op.XOR_LONG ||
-                    stmtNode.op == Op.REM_LONG || stmtNode.op == Op.MUL_LONG) {
+                    stmtNode.op == Op.REM_LONG || stmtNode.op == Op.MUL_LONG || stmtNode.op == Op.REM_FLOAT || stmtNode.op == Op.DIV_FLOAT || stmtNode.op == Op.SUB_FLOAT ||
+                    stmtNode.op == Op.ADD_DOUBLE) {
                 Stmt3RNode castStmtNode = (Stmt3RNode) stmtNode;
                 RegisterDependencyNode oldRegisterA = getActiveRegister(castStmtNode.b);
                 RegisterDependencyNode oldRegisterB = getActiveRegister(castStmtNode.c);
@@ -277,7 +278,7 @@ public class RegisterDependencyGraph {
                     stmtNode.op == Op.XOR_INT_2ADDR || stmtNode.op == Op.SUB_INT_2ADDR || stmtNode.op == Op.MUL_LONG_2ADDR || stmtNode.op == Op.AND_LONG_2ADDR ||
                     stmtNode.op == Op.DIV_LONG_2ADDR || stmtNode.op == Op.SHR_LONG_2ADDR || stmtNode.op == Op.MUL_DOUBLE_2ADDR || stmtNode.op == Op.SUB_DOUBLE_2ADDR ||
                     stmtNode.op == Op.USHR_LONG_2ADDR || stmtNode.op == Op.MUL_FLOAT_2ADDR || stmtNode.op == Op.SUB_FLOAT_2ADDR || stmtNode.op == Op.ADD_FLOAT_2ADDR ||
-                    stmtNode.op == Op.OR_LONG_2ADDR || stmtNode.op == Op.SHL_LONG_2ADDR || stmtNode.op == Op.REM_LONG_2ADDR) {
+                    stmtNode.op == Op.OR_LONG_2ADDR || stmtNode.op == Op.SHL_LONG_2ADDR || stmtNode.op == Op.REM_LONG_2ADDR || stmtNode.op == Op.ADD_DOUBLE_2ADDR) {
                 Stmt2RNode castStmtNode = (Stmt2RNode) stmtNode;
 
                 RegisterDependencyNode oldRegister = getActiveRegister(castStmtNode.a);

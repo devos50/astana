@@ -175,4 +175,46 @@ public class StringDatabase {
         }
         return false;
     }
+
+    public void printCharacterDistribution() throws SQLException {
+        // encrypted
+        int[] encryptedDistribution = new int[128];
+        String sql = "SELECT string FROM strings";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        ResultSet rs = preparedStatement.executeQuery();
+        while(rs.next()) {
+            String encryptedString = rs.getString(1);
+            for(int i = 0; i < encryptedString.length(); i++) {
+                if(encryptedString.charAt(i) < 128) {
+                    encryptedDistribution[encryptedString.charAt(i)]++;
+                }
+            }
+        }
+
+        for(int i = 0; i < encryptedDistribution.length; i++) {
+            System.out.println(encryptedDistribution[i]);
+        }
+
+        System.out.println("-----");
+
+        // decrypted
+        int[] decryptedDistribution = new int[128];
+        sql = "SELECT result FROM strings WHERE is_decrypted = 1 AND execution_result_code = 0";
+        preparedStatement = connection.prepareStatement(sql);
+        rs = preparedStatement.executeQuery();
+        while(rs.next()) {
+            String decryptedString = rs.getString(1);
+            if(decryptedString != null) {
+                for(int i = 0; i < decryptedString.length(); i++) {
+                    if(decryptedString.charAt(i) < 128) {
+                        decryptedDistribution[decryptedString.charAt(i)]++;
+                    }
+                }
+            }
+        }
+
+        for(int i = 0; i < decryptedDistribution.length; i++) {
+            System.out.println(decryptedDistribution[i]);
+        }
+    }
 }
