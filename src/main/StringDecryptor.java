@@ -18,14 +18,15 @@ import com.googlecode.d2j.visitors.DexFileVisitor;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
+import java.sql.SQLException;
 import java.util.ArrayList;
 
 import static com.googlecode.d2j.DexConstants.*;
 
 public class StringDecryptor {
 
-    public static void decrypt(StringSnippet snippet) throws IOException {
-        System.out.println("Original string: " + snippet.getString() + " (l: " + snippet.getString().length() + ", " + snippet.file.getPath() + ")");
+    public static void decrypt(StringSnippet snippet, StringDatabase database) throws IOException, SQLException {
+        System.out.println("Attempt to decrypt string: " + snippet.getString() + " (l: " + snippet.getString().length() + ", " + snippet.file.getPath() + ")");
 
         String methodName = snippet.method.methodNode.method.getName();
 
@@ -34,6 +35,9 @@ public class StringDecryptor {
         int flags = ACC_PUBLIC | ACC_STATIC;
         if(methodName.equals("<clinit>")) {
             flags |= ACC_CONSTRUCTOR;
+        }
+        else if(methodName.equals("<init>")) {
+            flags = ACC_PUBLIC | ACC_CONSTRUCTOR;
         }
         DexMethodNode mn = new DexMethodNode(flags, m);
         DexCodeNode cn = new DexCodeNode();
@@ -70,10 +74,18 @@ public class StringDecryptor {
         Method mainMethod = new Method(snippet.method.methodNode.method.getOwner(), "main", paramTypes, "V");
         DexMethodNode mainMethodNode = new DexMethodNode(ACC_PUBLIC | ACC_STATIC, mainMethod);
         DexCodeNode mainCodeNode = new DexCodeNode();
-
-        MethodStmtNode mainMethodCall = new MethodStmtNode(Op.INVOKE_STATIC, new int[]{}, m);
         mainMethodNode.codeNode = mainCodeNode;
-        if(!methodName.equals("<clinit>")) {
+
+        if(methodName.equals("<init>")) {
+            // create a new instance and call the init
+            TypeStmtNode newInstanceNode = new TypeStmtNode(Op.NEW_INSTANCE, 0, 0, m.getOwner());
+            mainCodeNode.stmts.add(newInstanceNode);
+            MethodStmtNode initCall = new MethodStmtNode(Op.INVOKE_DIRECT, new int[]{0}, m);
+            mainCodeNode.stmts.add(initCall);
+        }
+        else if(!methodName.equals("<clinit>")) {
+            // call the method from the main method
+            MethodStmtNode mainMethodCall = new MethodStmtNode(Op.INVOKE_STATIC, new int[]{}, m);
             mainCodeNode.stmts.add(mainMethodCall);
         }
         returnVoidStmt = new Stmt0RNode(Op.RETURN_VOID);
@@ -113,12 +125,25 @@ public class StringDecryptor {
         // convert to .jar
         File jarFile = new File("temp/isolated.jar");
         BaseDexFileReader dexReader = MultiDexFileReader.open(Files.readAllBytes(dexFile.toPath()));
-        Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
+        try {
+            Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
+        }
+        catch(RuntimeException e) {
+            snippet.executionResultCode = 1;
+
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            snippet.resultStderr = sw.toString();
+            snippet.isDecrypted = true;
+            database.updateSnippet(snippet);
+            return;
+        }
 
         // run the jar
         String className = snippet.method.methodNode.method.getOwner();
         className = className.substring(1, className.length() - 1).replace("/", ".");
-        Process p = Runtime.getRuntime().exec("java -cp temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null");
+        Process p = Runtime.getRuntime().exec("java -noverify -cp temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null");
         String line = null;
         String finalString = "";
         try {
@@ -133,12 +158,16 @@ public class StringDecryptor {
             }
 
             line = null;
+            String stderr = "";
             reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
             while ((line = reader.readLine()) != null) {
+                stderr += line;
                 System.out.println(line);
             }
 
-            if(result != 0) { System.exit(1); }
+            snippet.executionResultCode = result;
+            snippet.resultStderr = stderr;
+            snippet.isDecrypted = true;
 
             if(result == 0 && finalString.length() > 0) {
                 System.out.println("RESULT: " + finalString);
@@ -146,7 +175,11 @@ public class StringDecryptor {
                 snippet.decryptionSuccessful = true;
             }
 
-        } catch (InterruptedException e) {
+            database.updateSnippet(snippet);
+
+//            if(result != 0) { System.exit(1); }
+
+        } catch (InterruptedException | SQLException e) {
             e.printStackTrace();
         }
     }

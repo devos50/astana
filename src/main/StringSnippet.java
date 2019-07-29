@@ -20,9 +20,12 @@ public class StringSnippet {
     public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
     public int stringResultRegister = 0;
     public boolean stringIsEncrypted = true;
+    public boolean isDecrypted = false;
     public boolean finalized = true;
     public boolean decryptionSuccessful = false;
     public String decryptedString = null;
+    public int executionResultCode;
+    public String resultStderr = null;
 
     public StringSnippet(String apkPath, File file, Method method, int stringInitIndex) {
         this.apkPath = apkPath;

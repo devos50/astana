@@ -42,7 +42,14 @@ public class Main {
 //                continue;
 //            }
 
-            if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android")) {
+            // skip some well-known libraries
+            if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/android") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/firebase") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/butterknife") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/fasterxml/jackson") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/android/volley") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/squareup/okhttp")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 SmaliFileParser parser = new SmaliFileParser(apkName, smaliFile);
                 parser.parseFile();
@@ -54,14 +61,21 @@ public class Main {
             }
         }
 
-        // insert snippets in the database
+        // insert snippets in the database if they do not exist yet
         for(StringSnippet snippet : snippets) {
-//            StringDecryptor.decrypt(snippet);
             database.insertSnippet(snippet);
         }
 
-        database.setPreprocessed(apkName, numStrings);
         System.out.println("Snippets: " + snippets.size());
+
+        // decrypt them
+        for(StringSnippet snippet : snippets) {
+            if(!database.isDecrypted(snippet)) {
+                StringDecryptor.decrypt(snippet, database);
+            }
+        }
+
+        database.setPreprocessed(apkName, numStrings);
     }
 
     public static void main(String[] args) throws IOException, SQLException, ParseException {

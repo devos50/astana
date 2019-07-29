@@ -22,10 +22,14 @@ public class StringDatabase {
                     "apk varchar(255)," +
                     "file varchar(255)," +
                     "method varchar(255)," +
+                    "string_init_index INTEGER," +
+                    "string_decrypt_index INTEGER," +
                     "string TEXT," +
                     "statements TEXT," +
                     "is_decrypted INTEGER," +
-                    "result TEXT" +
+                    "result TEXT," +
+                    "execution_result_code INTEGER," +
+                    "stderr TEXT" +
                     ");";
 
             Statement stmt = connection.createStatement();
@@ -86,23 +90,78 @@ public class StringDatabase {
         preparedStatement.execute();
     }
 
+    public boolean isDecrypted(StringSnippet snippet) throws SQLException {
+        int existingSnippetId = hasSnippet(snippet);
+        if(existingSnippetId == -1) {
+            return false;
+        }
+
+        String sql = "SELECT is_decrypted FROM strings WHERE id = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setInt(1, existingSnippetId);
+        ResultSet rs = preparedStatement.executeQuery();
+        rs.next();
+        return rs.getBoolean(1);
+    }
+
     public void insertSnippet(StringSnippet snippet) throws SQLException {
+        int existingSnippetId = hasSnippet(snippet);
+        if(existingSnippetId != -1) {
+            return;
+        }
+
         // compute involved statements
         Set<String> involvedStatementsIndices = new HashSet<>();
         for(DexStmtNode node : snippet.extractedStatements) {
             involvedStatementsIndices.add("" + snippet.method.methodNode.codeNode.stmts.indexOf(node));
         }
 
-        String sql = "INSERT INTO strings VALUES(?, ?, ?, ?, ?, ?, 0, ?)";
+        String sql = "INSERT INTO strings VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setInt(1, getNextId());
         preparedStatement.setString(2, snippet.apkPath);
         preparedStatement.setString(3, snippet.file.getPath());
         preparedStatement.setString(4, snippet.method.methodNode.method.getName());
-        preparedStatement.setString(5, snippet.getString());
-        preparedStatement.setString(6, String.join(",", involvedStatementsIndices));
-        preparedStatement.setString(7, null);
+        preparedStatement.setInt(5, snippet.stringInitIndex);
+        preparedStatement.setInt(6, snippet.stringDecryptedIndex);
+        preparedStatement.setString(7, snippet.getString());
+        preparedStatement.setString(8, String.join(",", involvedStatementsIndices));
+        preparedStatement.setBoolean(9, snippet.isDecrypted);
+        preparedStatement.setString(10, snippet.decryptedString);
+        preparedStatement.setInt(11, snippet.executionResultCode);
+        preparedStatement.setString(12, snippet.resultStderr);
         preparedStatement.execute();
+    }
+
+    public void updateSnippet(StringSnippet snippet) throws SQLException {
+        int existingSnippetId = hasSnippet(snippet);
+        if(existingSnippetId == -1) {
+            insertSnippet(snippet);
+        }
+        else {
+            // update existing entry
+            String sql = "UPDATE strings SET is_decrypted = ?, result = ?, execution_result_code = ?, stderr = ? WHERE id = ?";
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+            preparedStatement.setBoolean(1, snippet.isDecrypted);
+            preparedStatement.setString(2, snippet.decryptedString);
+            preparedStatement.setInt(3, snippet.executionResultCode);
+            preparedStatement.setString(4, snippet.resultStderr);
+            preparedStatement.setInt(5, existingSnippetId);
+            preparedStatement.execute();
+        }
+    }
+
+    public int hasSnippet(StringSnippet snippet) throws SQLException {
+        String sql = "SELECT id FROM strings WHERE apk = ? AND file = ? AND method = ? and string_init_index = ? AND string_decrypt_index = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, snippet.apkPath);
+        preparedStatement.setString(2, snippet.file.getPath());
+        preparedStatement.setString(3, snippet.method.methodNode.method.getName());
+        preparedStatement.setInt(4, snippet.stringInitIndex);
+        preparedStatement.setInt(5, snippet.stringDecryptedIndex);
+        ResultSet rs = preparedStatement.executeQuery();
+        if(!rs.next()) { return -1; }
+        return rs.getInt(1);
     }
 
     public boolean tableExists(String tableName){

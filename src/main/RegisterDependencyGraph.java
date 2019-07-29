@@ -127,7 +127,7 @@ public class RegisterDependencyGraph {
 
                 // there is one edge case though: where we have an invoke-direct on a string. We should actually consider this one since there is no subsequent move statement
                 if(stmtNode.op == Op.INVOKE_DIRECT) {
-                    if(mnn.method.getName().equals("<init>") && mnn.method.getOwner().equals("Ljava/lang/String;")) {
+                    if(mnn.method.getName().equals("<init>")) {
                         int[] args = new int[0];
                         if(mnn.args != null) { args = mnn.args; }
                         RegisterDependencyNode[] argNodes = new RegisterDependencyNode[args.length];
