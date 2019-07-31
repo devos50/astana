@@ -8,15 +8,20 @@ import com.googlecode.d2j.reader.Op;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.io.File;
 import java.util.*;
 
 public class Method {
 
+    public final String apkPath;
+    public final File file;
     public DexMethodNode methodNode;
     public ControlFlowGraph controlFlowGraph;
     public List<MethodSection> sections = new ArrayList<>();
 
-    public Method(DexMethodNode methodNode) {
+    public Method(String apkPath, File file, DexMethodNode methodNode) {
+        this.apkPath = apkPath;
+        this.file = file;
         this.methodNode = methodNode;
 
         // prune labels that we are never jumping to
@@ -92,22 +97,6 @@ public class Method {
             }
         }
 
-        // debugging
-//        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-//            DexStmtNode node = methodNode.codeNode.stmts.get(i);
-//            if(node instanceof DexLabelStmtNode) {
-//                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
-//                System.out.println(i + ": " + labelNode.label);
-//            }
-//            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
-//                ConstStmtNode constStmtNode = (ConstStmtNode) node;
-//                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
-//            }
-//            else {
-//                System.out.println(i + ": " + node.op);
-//            }
-//        }
-
         // classify try and catch blocks correctly
         if(methodNode.codeNode.tryStmts != null) {
             for(TryCatchNode tryCatchNode : methodNode.codeNode.tryStmts) {
@@ -124,9 +113,31 @@ public class Method {
                 }
             }
         }
+    }
 
-        // build CFG
-        controlFlowGraph = ControlFlowGraph.build(this);
+    public String getName() {
+        return methodNode.method.getName();
+    }
+
+    public void buildCFG() {
+        // debugging
+        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+            DexStmtNode node = methodNode.codeNode.stmts.get(i);
+            if(node instanceof DexLabelStmtNode) {
+                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
+                System.out.println(i + ": " + labelNode.label);
+            }
+            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
+                ConstStmtNode constStmtNode = (ConstStmtNode) node;
+                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
+            }
+            else {
+                System.out.println(i + ": " + node.op);
+            }
+        }
+
+        controlFlowGraph = new ControlFlowGraph(this);
+        controlFlowGraph.build();
     }
 
     public Set<MethodSection> getSectionsRange(MethodSection from, MethodSection to) {
@@ -160,45 +171,40 @@ public class Method {
         return null;
     }
 
-    public Set<MethodExecutionPath> getExecutionPaths(int sourceStmtIndex, int destStmtIndex) {
-        Set<MethodExecutionPath> paths = new HashSet<>();
-        LinkedList<Pair<MethodSection, MethodExecutionPath>> queue = new LinkedList<>();
-        MethodSection sourceSection = getSectionForStatement(sourceStmtIndex);
-        MethodSection destinationSection = getSectionForStatement(destStmtIndex);
+    public List<MethodExecutionPath> getExecutionPaths(int sourceStmtIndex, int destStmtIndex) {
+        List<MethodExecutionPath> paths = new ArrayList<>();
+        LinkedList<Pair<Integer, MethodExecutionPath>> queue = new LinkedList<>();
         MethodExecutionPath firstPath = new MethodExecutionPath(this, sourceStmtIndex, destStmtIndex);
-        firstPath.sectionsVisited.add(sourceSection);
-        queue.add(new ImmutablePair<>(sourceSection, firstPath));
+        queue.add(new ImmutablePair<>(sourceStmtIndex, firstPath));
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
             if(queue.size() >= 100000) {
                 return paths;
             }
 
-            Pair<MethodSection, MethodExecutionPath> pair = queue.remove();
-            MethodSection currentNode = pair.getKey();
+            Pair<Integer, MethodExecutionPath> pair = queue.remove();
+            int currentStmtIndex = pair.getKey();
             MethodExecutionPath currentPath = pair.getValue();
-            if(currentNode == destinationSection) {
+            if(currentStmtIndex == destStmtIndex) {
                 paths.add(currentPath);
                 continue;
             }
 
-            // get outgoing edges and add them to the queue
-            for(MethodSectionJump jump : controlFlowGraph.adjacency.get(currentNode)) {
-                if(!currentPath.path.contains(jump)) {
-
-                    // can we even make the jump?
-                    if(currentNode == sourceSection && jump.jumpStmtIndex != -1 && sourceStmtIndex > jump.jumpStmtIndex) {
-                        continue;
+            List<ControlFlowGraphJump> jumps = controlFlowGraph.getJumps(currentStmtIndex);
+            for(ControlFlowGraphJump jump : jumps) {
+                if(jump.jumpType == JumpType.NEXT_STATEMENT || jump.jumpType == JumpType.GOTO_STATEMENT) {
+                    queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, currentPath));
+                }
+                else {
+                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex);
+                    if(!currentPath.path.contains(decision)) {
+                        MethodExecutionPath copied = currentPath.copy();
+                        copied.path.add(decision);
+                        queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, copied));
                     }
-
-                    MethodExecutionPath copied = currentPath.copy();
-                    copied.path.add(jump);
-                    copied.sectionsVisited.add(jump.toSection);
-                    queue.add(new ImmutablePair<>(jump.toSection, copied));
                 }
             }
         }
         return paths;
     }
-
 }

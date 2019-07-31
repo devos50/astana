@@ -16,17 +16,45 @@ public class SmaliFileParser {
     private final String apkPath;
     private final File smaliFile;
     public DexClassNode rootNode;
+    public List<Method> methods = new ArrayList<>();
     public int numStrings = 0;
     public List<StringSnippet> snippets = new ArrayList<>();
 
-    public SmaliFileParser(String apkPath, File smaliFile) {
+    public SmaliFileParser(String apkPath, File smaliFile) throws FileNotFoundException {
         this.apkPath = apkPath;
         this.smaliFile = smaliFile;
+
+        InputStream input = new FileInputStream(smaliFile);
+        try {
+            this.rootNode = Smali.smaliFile2Node("test.smali", input);
+        } catch (Exception e) {
+            System.out.println("Could not parse file " + smaliFile.getPath());
+        }
+
+        if(rootNode == null || rootNode.methods == null) {
+            return;
+        }
+
+        for (DexMethodNode methodNode : rootNode.methods) {
+            if(methodNode.codeNode.stmts.size() > 0) {
+                Method method = new Method(apkPath, smaliFile, methodNode);
+                methods.add(method);
+            }
+        }
+    }
+
+    public Method getMethod(String methodName) {
+        for(Method method : methods) {
+            if(method.getName().equals(methodName)) {
+                return method;
+            }
+        }
+        return null;
     }
 
     public void processSnippet(StringSnippet snippet) {
         // find all possible paths from the string declaration to the point where the string is decrypted
-        Set<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
+        List<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
         List<Set<Integer>> statementsSet = new ArrayList<>();
 
         if(stringPaths.size() == 0) {
@@ -69,14 +97,9 @@ public class SmaliFileParser {
             }
         }
 
-        boolean includeJumps = true;
-        if(areEqual) {
-            includeJumps = false;
-        }
-
         // compute involved statements
         for(MethodExecutionPath path : stringPaths) {
-            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(snippet.stringResultRegister, includeJumps);
+            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(snippet.stringResultRegister, !areEqual);
             for(int i = 0; i < pathInvolvedStatements.length; i++) {
                 involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
             }
@@ -84,7 +107,7 @@ public class SmaliFileParser {
 
         // we now check if there are undefined registers - if there are, create another dependency graph
         if(undefinedRegisters.size() > 0) {
-            Set<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
+            List<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
             statementsSet = new ArrayList<>();
             for(MethodExecutionPath backwardPath : backwardPaths) {
                 Set<Integer> statementsForPath = new HashSet<>();
@@ -106,7 +129,7 @@ public class SmaliFileParser {
                 statementsSet.add(statementsForPath);
             }
 
-            // test whether the dependency sets are the same, if so, jumps do not matter and we can exclude them
+            // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
             areEqual = true;
             for(int i = 0; i < statementsSet.size() - 1; i++) {
                 if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
@@ -115,14 +138,9 @@ public class SmaliFileParser {
                 }
             }
 
-            includeJumps = true;
-            if(areEqual) {
-                includeJumps = false;
-            }
-
             for(MethodExecutionPath backwardPath : backwardPaths) {
                 for(Integer undefinedRegister : undefinedRegisters) {
-                    boolean[] pathInvolvedStatements = backwardPath.computeInvolvedStatements(undefinedRegister, includeJumps);
+                    boolean[] pathInvolvedStatements = backwardPath.computeInvolvedStatements(undefinedRegister, !areEqual);
                     for(int i = 0; i < pathInvolvedStatements.length; i++) {
                         involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
                     }
@@ -194,90 +212,73 @@ public class SmaliFileParser {
         return potentialStringDecryption;
     }
 
-    public Pair<Integer, Integer> findPossibleStringDecryptionStatement(StringSnippet snippet) {
-        // first, analyze the section, from the point where the string is declared
-        MethodSection rootSection = snippet.method.getSectionForStatement(snippet.stringInitIndex);
-        for(int stmtIndex = snippet.stringInitIndex + 1; stmtIndex < rootSection.endIndex; stmtIndex++) {
-            Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method, snippet.stringInitIndex, stmtIndex);
-            if(pair.getKey() != -1) {
-                return pair;
+    public List<StringSnippet> getPotentialStringSnippets(Method method) {
+        List<StringSnippet> snippets = new ArrayList<>();
+        for (int stmtIndex = 0; stmtIndex < method.methodNode.codeNode.stmts.size(); stmtIndex++) {
+            DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
+            if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
+                numStrings++;
+                ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
+                if(stringInitNode.value.toString().length() > 0) {
+//                        System.out.println("Processing str: " + stringInitNode.value.toString());
+                    Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(method, stmtIndex);
+                    if(pair.getKey() != -1) {
+                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, method, stmtIndex);
+                        snippet.stringDecryptedIndex = pair.getKey();
+                        snippet.stringResultRegister = pair.getValue();
+                        snippets.add(snippet);
+                    }
+                }
             }
         }
+        return snippets;
+    }
 
-        // we could not find it in the root section; look further
-        List<MethodSection> visited = new ArrayList<>();
-        LinkedList<MethodSection> queue = new LinkedList<>();
-        visited.add(rootSection);
-        queue.add(rootSection);
+    public Pair<Integer, Integer> findPossibleStringDecryptionStatement(Method method, int stringInitIndex) {
+        LinkedList<Pair<Integer, MethodExecutionPath>> queue = new LinkedList<>();
+        MethodExecutionPath firstPath = new MethodExecutionPath(method, stringInitIndex, -1);
+        queue.add(new ImmutablePair<>(stringInitIndex, firstPath));
 
-        // analyze the section that contains the string init
         while(!queue.isEmpty()) {
-            MethodSection currentSection = queue.remove();
-            List<MethodSectionJump> adjacent = snippet.method.controlFlowGraph.adjacency.get(currentSection);
+            Pair<Integer, MethodExecutionPath> pair = queue.remove();
+            int currentStmtIndex = pair.getKey();
+            MethodExecutionPath currentPath = pair.getValue();
+            Pair<Integer, Integer> decryptPair = isPotentialStringDecryption(method, stringInitIndex, currentStmtIndex);
+            if(decryptPair.getKey() != -1 && decryptPair.getValue() != -1) {
+                return decryptPair;
+            }
 
-            for(MethodSectionJump jump : adjacent) {
-                if(jump.jumpStmtIndex == -1) {
-                    // This is a jump made by a catch. If the string init is in a try block, then the decryption method will (most likely) be not be in the catch block.
-                    // Therefore, we ignore this jump.
-                    continue;
+            List<ControlFlowGraphJump> jumps = method.controlFlowGraph.getJumps(currentStmtIndex);
+            for(ControlFlowGraphJump jump : jumps) {
+                if(jump.jumpType == JumpType.NEXT_STATEMENT || jump.jumpType == JumpType.GOTO_STATEMENT) {
+                    queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, currentPath));
                 }
-
-                MethodSection adjacentSection = jump.toSection;
-                if(!visited.contains(adjacentSection)) {
-                    for(int stmtIndex = adjacentSection.beginIndex; stmtIndex < adjacentSection.endIndex; stmtIndex++) {
-                        Pair<Integer, Integer> pair = isPotentialStringDecryption(snippet.method, snippet.stringInitIndex, stmtIndex);
-                        if(pair.getKey() != -1) {
-                            return pair;
-                        }
+                else {
+                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex);
+                    if(!currentPath.path.contains(decision)) {
+                        MethodExecutionPath copied = currentPath.copy();
+                        copied.path.add(decision);
+                        queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, copied));
                     }
-
-                    visited.add(adjacentSection);
-                    queue.add(adjacentSection);
                 }
             }
         }
         return new ImmutablePair<>(-1, -1);
     }
 
-    public void parseFile() throws FileNotFoundException {
-        InputStream input = new FileInputStream(smaliFile);
-        try {
-            this.rootNode = Smali.smaliFile2Node("test.smali", input);
-        } catch (Exception e) {
-            System.out.println("Could not parse file " + smaliFile.getPath());
-        }
-    }
-
     public void process() {
-        if(rootNode == null || rootNode.methods == null) {
-            return;
-        }
-
-        for (DexMethodNode methodNode : rootNode.methods) {
-            if(methodNode.codeNode.stmts.size() == 0) {
-                continue;
-            }
-//            if(!methodNode.method.getName().equals("instantiate")) {
+        for (Method method : methods) {
+            DexMethodNode methodNode = method.methodNode;
+//            if(!methodNode.method.getName().equals("ch")) {
 //                continue;
 //            }
 
-//            System.out.println("Processing method: " + methodNode.method.getName());
-            Method method = new Method(methodNode);
-            for (int stmtIndex = 0; stmtIndex < methodNode.codeNode.stmts.size(); stmtIndex++) {
-                DexStmtNode stmtNode = methodNode.codeNode.stmts.get(stmtIndex);
-                if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
-                    numStrings++;
-                    ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                    if(stringInitNode.value.toString().length() > 0) {
-//                        System.out.println("Processing str: " + stringInitNode.value.toString());
-                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, method, stmtIndex);
-                        Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(snippet);
-                        if(pair.getKey() != -1) {
-                            snippet.stringDecryptedIndex = pair.getKey();
-                            snippet.stringResultRegister = pair.getValue();
-                            processSnippet(snippet);
-                        }
-                    }
+            method.buildCFG();
+
+            List<StringSnippet> snippets = getPotentialStringSnippets(method);
+            for(StringSnippet snippet : snippets) {
+                if(snippet.getString().equals("hnqwwcrk{pxn")) {
+                    processSnippet(snippet);
                 }
             }
         }
