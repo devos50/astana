@@ -1,9 +1,12 @@
 package main;
 
 import com.googlecode.d2j.node.insn.DexStmtNode;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.sql.*;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -217,6 +220,23 @@ public class StringDatabase {
 
         for(int i = 0; i < decryptedDistribution.length; i++) {
             System.out.println("deobfuscated," + i + "," + decryptedDistribution[i] / (float)total);
+        }
+    }
+
+    public void printRatiosReportedAsEncrypted() throws SQLException {
+        String sql = "SELECT apk, num_strings FROM applications";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        ResultSet rs = preparedStatement.executeQuery();
+        while(rs.next()) {
+            String apk = rs.getString(1);
+            int totalCount = rs.getInt(2);
+            String sql2 = "SELECT COUNT(*) FROM strings WHERE apk = ?";
+            PreparedStatement preparedStatement2 = connection.prepareStatement(sql2);
+            preparedStatement2.setString(1, apk);
+            ResultSet rs2 = preparedStatement2.executeQuery();
+            rs2.next();
+            int encryptedCount = rs2.getInt(1);
+            System.out.println(apk + "," + totalCount + "," + encryptedCount);
         }
     }
 }

@@ -21,12 +21,10 @@ public class Main {
 
     public static void processApk(File apkFile) throws SQLException, IOException {
         String apkName = apkFile.getName();
-        if(database.isPreprocessed(apkName)) {
-            database.printCharacterDistribution();
-
-            System.out.println("APK " + apkName + " is already processed - ignoring");
-            return;
-        }
+//        if(database.isPreprocessed(apkName)) {
+//            System.out.println("APK " + apkName + " is already processed - ignoring");
+//            return;
+//        }
 
         database.addApplication(apkName);
 
@@ -48,9 +46,9 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-//            if(!smaliFile.getPath().equals("data/abnamro.apk-smali/c/a/Application$i.smali")) {
-//                continue;
-//            }
+            if(!smaliFile.getPath().equals("data/lloyds.apk-smali/iiiiii/llllul.smali")) {
+                continue;
+            }
 
             // skip some well-known libraries
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
@@ -63,7 +61,6 @@ public class Main {
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/squareup/okhttp")) {
                 System.out.println("Processing file " + smaliFile.getPath());
                 SmaliFileParser parser = new SmaliFileParser(apkName, smaliFile);
-                parser.parseFile();
                 parser.process();
                 snippets.addAll(parser.snippets);
                 numStrings += parser.numStrings;
@@ -163,30 +160,30 @@ public class Main {
 //        br.write(sb.toString());
 //        br.close();
 
-        System.out.println("Clustering...");
-        KMeans kmeans = new KMeans(distances, 10, 30000);
-        int[] membership = kmeans.getClusterLabel();
-        for(int cluster = 0; cluster < 10; cluster++) {
-            ArrayList<Integer> belongsTo = new ArrayList<>();
-            for(int i = 0; i < membership.length; i++) {
-                if(membership[i] == cluster) { belongsTo.add(i); }
-            }
-            System.out.println("Members in cluster " + cluster + ": " + belongsTo.size());
-
-            int encrypted = 0;
-            int decrypted = 0;
-            for(int i = 0; i < belongsTo.size(); i++) {
-                StringSnippet item = snippets.get(belongsTo.get(i));
-                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
-                else { decrypted++; }
-
-                System.out.println("Item " + belongsTo.get(i) + ": " + item.getPrintableStatements());
-            }
-
-            for(int i = 0; i < belongsTo.size(); i++) {
-                StringSnippet item = snippets.get(belongsTo.get(i));
-                System.out.println("Item " + belongsTo.get(i) + ": C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
-            }
+//        System.out.println("Clustering...");
+//        KMeans kmeans = new KMeans(distances, 10, 30000);
+//        int[] membership = kmeans.getClusterLabel();
+//        for(int cluster = 0; cluster < 10; cluster++) {
+//            ArrayList<Integer> belongsTo = new ArrayList<>();
+//            for(int i = 0; i < membership.length; i++) {
+//                if(membership[i] == cluster) { belongsTo.add(i); }
+//            }
+//            System.out.println("Members in cluster " + cluster + ": " + belongsTo.size());
+//
+//            int encrypted = 0;
+//            int decrypted = 0;
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                StringSnippet item = snippets.get(belongsTo.get(i));
+//                if(item.file.getPath().contains("data/lloyds-smali/iiiiii") || item.file.getPath().contains("data/barclays-smali/p") || item.file.getPath().contains("data/barclays-smali/com/barclays")) { encrypted++; }
+//                else { decrypted++; }
+//
+//                System.out.println("Item " + belongsTo.get(i) + ": " + item.getPrintableStatements());
+//            }
+//
+//            for(int i = 0; i < belongsTo.size(); i++) {
+//                StringSnippet item = snippets.get(belongsTo.get(i));
+//                System.out.println("Item " + belongsTo.get(i) + ": C " + cluster + ", file: " + item.file.getPath() + ", str: " + item.getString());
+//            }
 //
 //            // compute mean distance
 //            ArrayList<Double> inClusterDistances = new ArrayList<>();
@@ -279,5 +276,5 @@ public class Main {
 //            res /= totalDistance;
 //            System.out.println("monzo," + k + "," + res);
 //        }
-    }
+//    }
 }

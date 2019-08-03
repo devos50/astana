@@ -12,8 +12,7 @@ public class MethodExecutionPath {
     public Method method;
     public int sourceStmtIndex;
     public int destStmtIndex;
-    public List<MethodSection> sectionsVisited = new ArrayList<>();
-    public List<MethodSectionJump> path = new ArrayList<>();
+    public List<JumpDecision> path = new ArrayList<>();
     public RegisterDependencyGraph registerDependencyGraph;
 
     public MethodExecutionPath(Method method, int stringInitIndex, int stringDecryptIndex) {
@@ -24,7 +23,6 @@ public class MethodExecutionPath {
 
     public MethodExecutionPath copy() {
         MethodExecutionPath copy = new MethodExecutionPath(this.method, this.sourceStmtIndex, this.destStmtIndex);
-        copy.sectionsVisited.addAll(this.sectionsVisited);
         copy.path.addAll(this.path);
         return copy;
     }
@@ -48,19 +46,19 @@ public class MethodExecutionPath {
         }
 
         if(includeJumps) {
-            for(MethodSectionJump jump : path) {
-                if(jump.jumpStmtIndex == -1) { continue; }
-
-                if(jump.fromSection.sectionLabel.displayName != null && !jump.fromSection.sectionLabel.displayName.equals("start")) {
-                    int fromSectionLabelStmtIndex = jump.fromSection.beginIndex - 1;
+            for(JumpDecision jumpDecision : path) {
+                MethodSection fromSection = method.getSectionForStatement(jumpDecision.fromStmtIndex);
+                if(fromSection.sectionLabel.displayName != null && !fromSection.sectionLabel.displayName.equals("start")) {
+                    int fromSectionLabelStmtIndex = fromSection.beginIndex - 1;
                     involvedStatements[fromSectionLabelStmtIndex] = true;
                 }
 
-                int toSectionLabelStmtIndex = jump.toSection.beginIndex - 1;
+                MethodSection toSection = method.getSectionForStatement(jumpDecision.fromStmtIndex);
+                int toSectionLabelStmtIndex = toSection.beginIndex - 1;
                 involvedStatements[toSectionLabelStmtIndex] = true;
-                if(method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex) instanceof JumpStmtNode ||
-                        method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex) instanceof PackedSwitchStmtNode) {
-                    involvedStatements[jump.jumpStmtIndex] = true;
+                if(method.methodNode.codeNode.stmts.get(jumpDecision.fromStmtIndex) instanceof JumpStmtNode ||
+                        method.methodNode.codeNode.stmts.get(jumpDecision.fromStmtIndex) instanceof PackedSwitchStmtNode) {
+                    involvedStatements[jumpDecision.fromStmtIndex] = true;
                 }
             }
         }
@@ -75,17 +73,15 @@ public class MethodExecutionPath {
 
         // also include dependencies for conditional jumps and packed switches
         if(includeJumps) {
-            for(MethodSectionJump jump : path) {
-                if(jump.jumpStmtIndex == -1) { continue; }
-
-                DexStmtNode jumpNode = method.methodNode.codeNode.stmts.get(jump.jumpStmtIndex);
+            for(JumpDecision jumpDecision : path) {
+                DexStmtNode jumpNode = method.methodNode.codeNode.stmts.get(jumpDecision.fromStmtIndex);
                 if(jumpNode instanceof JumpStmtNode && jumpNode.op != Op.GOTO && jumpNode.op != Op.GOTO_16 && jumpNode.op != Op.GOTO_32) {
-                    for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
+                    for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jumpDecision.fromStmtIndex)) {
                         involvedRegisters.addAll(registerDependencyGraph.getDependencies(node));
                     }
                 }
                 else if(jumpNode instanceof PackedSwitchStmtNode) {
-                    for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jump.jumpStmtIndex)) {
+                    for(RegisterDependencyNode node : registerDependencyGraph.statementToRegister.get(jumpDecision.fromStmtIndex)) {
                         involvedRegisters.addAll(registerDependencyGraph.getDependencies(node));
                     }
                 }

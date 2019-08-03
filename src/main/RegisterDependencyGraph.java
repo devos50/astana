@@ -110,11 +110,11 @@ public class RegisterDependencyGraph {
         // we now build the register dependency graph in a forward way. Start from the string declaration and end at the potential line where the string is decrypted, while following the path.
 //        System.out.println("Building register dependency graph: ");
         int currentStmtIndex = methodExecutionPath.sourceStmtIndex;
-        MethodSection currentSection = methodExecutionPath.method.getSectionForStatement(methodExecutionPath.sourceStmtIndex);
         int currentJumpIndex = 0;
         while(true) {
             DexStmtNode stmtNode = methodExecutionPath.method.methodNode.codeNode.stmts.get(currentStmtIndex);
 //            System.out.println(stmtNode.op);
+
             if(stmtNode instanceof ConstStmtNode) {
                 // definition of a constant -> set new active register
                 ConstStmtNode constStmtNode = (ConstStmtNode) stmtNode;
@@ -348,22 +348,16 @@ public class RegisterDependencyGraph {
             if(currentStmtIndex == methodExecutionPath.destStmtIndex) {
                 break;
             }
-            else if(currentStmtIndex == currentSection.endIndex - 1 && currentJumpIndex == methodExecutionPath.path.size()) {
-                break;
+
+            // are we at a jump that we should take it?
+            if(stmtNode.op == Op.GOTO || stmtNode.op == Op.GOTO_16 || stmtNode.op == Op.GOTO_32) {
+                JumpStmtNode jumpStmtNode = (JumpStmtNode) stmtNode;
+                currentStmtIndex = methodExecutionPath.method.getSectionForLabel(jumpStmtNode.label).beginIndex;
             }
             else if(currentJumpIndex < methodExecutionPath.path.size()) {
-                // are we at a point where we should jump?
-                MethodSectionJump nextJump = methodExecutionPath.path.get(currentJumpIndex);
-                if(currentStmtIndex == nextJump.jumpStmtIndex) {
-                    // take it!
-                    currentStmtIndex = nextJump.toSection.beginIndex;
-                    currentSection = nextJump.toSection;
-                    currentJumpIndex++;
-                }
-                else if(nextJump.jumpStmtIndex == -1) {
-                    // go to the catch
-                    currentStmtIndex = nextJump.toSection.beginIndex;
-                    currentSection = nextJump.toSection;
+                JumpDecision jumpDecision = methodExecutionPath.path.get(currentJumpIndex);
+                if(currentStmtIndex == jumpDecision.fromStmtIndex) {
+                    currentStmtIndex = jumpDecision.toStmtIndex;
                     currentJumpIndex++;
                 }
                 else {
