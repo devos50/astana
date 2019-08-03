@@ -21,10 +21,10 @@ public class Main {
 
     public static void processApk(File apkFile) throws SQLException, IOException {
         String apkName = apkFile.getName();
-//        if(database.isPreprocessed(apkName)) {
-//            System.out.println("APK " + apkName + " is already processed - ignoring");
-//            return;
-//        }
+        if(database.isPreprocessed(apkName)) {
+            System.out.println("APK " + apkName + " is already processed - ignoring");
+            return;
+        }
 
         database.addApplication(apkName);
 
@@ -46,14 +46,17 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-            if(!smaliFile.getPath().equals("data/lloyds.apk-smali/iiiiii/llllul.smali")) {
-                continue;
-            }
+//            if(!smaliFile.getPath().equals("data/co.cuvva.hourly-4336.apk-smali/com/appsflyer/j.smali")) {
+//                continue;
+//            }
 
             // skip some well-known libraries
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/kotlin") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/android") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/zxing") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/facebook") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/i18n") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/firebase") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/butterknife") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/fasterxml/jackson") &&
@@ -70,6 +73,7 @@ public class Main {
         }
 
         // insert snippets in the database if they do not exist yet
+        System.out.println("Writing to database...");
         for(StringSnippet snippet : snippets) {
             database.insertSnippet(snippet);
         }

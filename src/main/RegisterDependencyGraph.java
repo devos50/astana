@@ -113,7 +113,7 @@ public class RegisterDependencyGraph {
         int currentJumpIndex = 0;
         while(true) {
             DexStmtNode stmtNode = methodExecutionPath.method.methodNode.codeNode.stmts.get(currentStmtIndex);
-//            System.out.println(stmtNode.op);
+//            System.out.println(stmtNode.op + "(" + currentStmtIndex + ")");
 
             if(stmtNode instanceof ConstStmtNode) {
                 // definition of a constant -> set new active register

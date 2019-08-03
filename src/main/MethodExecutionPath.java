@@ -53,7 +53,7 @@ public class MethodExecutionPath {
                     involvedStatements[fromSectionLabelStmtIndex] = true;
                 }
 
-                MethodSection toSection = method.getSectionForStatement(jumpDecision.fromStmtIndex);
+                MethodSection toSection = method.getSectionForStatement(jumpDecision.toStmtIndex);
                 int toSectionLabelStmtIndex = toSection.beginIndex - 1;
                 involvedStatements[toSectionLabelStmtIndex] = true;
                 if(method.methodNode.codeNode.stmts.get(jumpDecision.fromStmtIndex) instanceof JumpStmtNode ||

@@ -220,7 +220,7 @@ public class SmaliFileParser {
                 numStrings++;
                 ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
                 if(stringInitNode.value.toString().length() > 0) {
-//                        System.out.println("Processing str: " + stringInitNode.value.toString());
+//                    System.out.println("Processing str: " + stringInitNode.value.toString());
                     Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(method, stmtIndex);
                     if(pair.getKey() != -1) {
                         StringSnippet snippet = new StringSnippet(apkPath, smaliFile, method, stmtIndex);
@@ -240,6 +240,11 @@ public class SmaliFileParser {
         queue.add(new ImmutablePair<>(stringInitIndex, firstPath));
 
         while(!queue.isEmpty()) {
+            // if there are too many items in the queue, the method is very complex; return an empty set
+            if(queue.size() >= 100000) {
+                return new ImmutablePair<>(-1, -1);
+            }
+
             Pair<Integer, MethodExecutionPath> pair = queue.remove();
             int currentStmtIndex = pair.getKey();
             MethodExecutionPath currentPath = pair.getValue();
@@ -268,6 +273,7 @@ public class SmaliFileParser {
 
     public void process() {
         for (Method method : methods) {
+//            System.out.println("Processing method: " + method.getName());
             DexMethodNode methodNode = method.methodNode;
 //            if(!methodNode.method.getName().equals("ch")) {
 //                continue;
@@ -277,9 +283,7 @@ public class SmaliFileParser {
 
             List<StringSnippet> snippets = getPotentialStringSnippets(method);
             for(StringSnippet snippet : snippets) {
-                if(snippet.getString().equals("hnqwwcrk{pxn")) {
-                    processSnippet(snippet);
-                }
+                processSnippet(snippet);
             }
         }
     }

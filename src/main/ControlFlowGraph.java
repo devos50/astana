@@ -113,7 +113,6 @@ public class ControlFlowGraph {
         }
 
         // consider try/catches
-        // for simplicity, just make a connection to the last statement of all try sections
         if(method.methodNode.codeNode.tryStmts != null) {
             for(TryCatchNode tryCatchNode : method.methodNode.codeNode.tryStmts) {
                 MethodSection startSection = method.getSectionForLabel(tryCatchNode.start);
@@ -123,8 +122,20 @@ public class ControlFlowGraph {
                     MethodSection catchSection = method.getSectionForLabel(handler);
                     ControlFlowGraphNode toNode = getNode(catchSection.beginIndex);
                     for(MethodSection trySection : trySections) {
-                        ControlFlowGraphNode fromNode = getNode(trySection.endIndex - 1);
-                        adjacency.get(fromNode).add(new ControlFlowGraphJump(fromNode, toNode, JumpType.TRY_CATCH));
+                        // for simplicity, just make a connection to the last eligible statement of all try sections
+                        int fromNodeIndex = -1;
+                        for(int stmtIndex = trySection.endIndex - 1; stmtIndex > trySection.beginIndex; stmtIndex--) {
+                            DexStmtNode currentNode = method.methodNode.codeNode.stmts.get(stmtIndex);
+                            if(currentNode.op != Op.GOTO && currentNode.op != Op.GOTO_16 && currentNode.op != Op.GOTO_32) {
+                                fromNodeIndex = stmtIndex;
+                                break;
+                            }
+                        }
+
+                        if(fromNodeIndex != -1) {
+                            ControlFlowGraphNode fromNode = getNode(fromNodeIndex);
+                            adjacency.get(fromNode).add(new ControlFlowGraphJump(fromNode, toNode, JumpType.TRY_CATCH));
+                        }
                     }
                 }
             }

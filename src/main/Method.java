@@ -121,20 +121,20 @@ public class Method {
 
     public void buildCFG() {
         // debugging
-        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
-            DexStmtNode node = methodNode.codeNode.stmts.get(i);
-            if(node instanceof DexLabelStmtNode) {
-                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
-                System.out.println(i + ": " + labelNode.label);
-            }
-            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
-                ConstStmtNode constStmtNode = (ConstStmtNode) node;
-                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
-            }
-            else {
-                System.out.println(i + ": " + node.op);
-            }
-        }
+//        for(int i = 0; i < methodNode.codeNode.stmts.size(); i++) {
+//            DexStmtNode node = methodNode.codeNode.stmts.get(i);
+//            if(node instanceof DexLabelStmtNode) {
+//                DexLabelStmtNode labelNode = (DexLabelStmtNode) node;
+//                System.out.println(i + ": " + labelNode.label);
+//            }
+//            else if(node.op == Op.CONST_STRING && node instanceof ConstStmtNode) {
+//                ConstStmtNode constStmtNode = (ConstStmtNode) node;
+//                System.out.println(i + ": " + constStmtNode.op + " (" + constStmtNode.value.toString() + ")");
+//            }
+//            else {
+//                System.out.println(i + ": " + node.op);
+//            }
+//        }
 
         controlFlowGraph = new ControlFlowGraph(this);
         controlFlowGraph.build();
