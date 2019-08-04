@@ -217,9 +217,9 @@ public class SmaliFileParser {
         for (int stmtIndex = 0; stmtIndex < method.methodNode.codeNode.stmts.size(); stmtIndex++) {
             DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
             if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
-                numStrings++;
                 ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
                 if(stringInitNode.value.toString().length() > 0) {
+                    numStrings++;
 //                    System.out.println("Processing str: " + stringInitNode.value.toString());
                     Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(method, stmtIndex);
                     if(pair.getKey() != -1) {
@@ -275,7 +275,7 @@ public class SmaliFileParser {
         for (Method method : methods) {
 //            System.out.println("Processing method: " + method.getName());
             DexMethodNode methodNode = method.methodNode;
-//            if(!methodNode.method.getName().equals("ch")) {
+//            if(!methodNode.method.getName().equals("<clinit>")) {
 //                continue;
 //            }
 

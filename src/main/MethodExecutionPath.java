@@ -39,12 +39,6 @@ public class MethodExecutionPath {
 
         boolean[] involvedStatements = new boolean[this.method.methodNode.codeNode.stmts.size()];
 
-        // first, include obvious statements, like the sections we visit in this path
-        MethodSection stringInitSection = method.getSectionForStatement(sourceStmtIndex);
-        if(stringInitSection.sectionLabel.displayName != null && !stringInitSection.sectionLabel.displayName.equals("start")) {
-            involvedStatements[stringInitSection.beginIndex - 1] = true; // label declaration
-        }
-
         if(includeJumps) {
             for(JumpDecision jumpDecision : path) {
                 MethodSection fromSection = method.getSectionForStatement(jumpDecision.fromStmtIndex);
@@ -94,6 +88,17 @@ public class MethodExecutionPath {
                 if(registerDependencyGraph.statementToRegister.get(i).contains(visitedNode)) {
                     involvedStatements[i] = true;
                 }
+            }
+        }
+
+        // include all section labels
+        for(int i = 0; i < involvedStatements.length; i++) {
+            if(involvedStatements[i]) {
+                MethodSection section = method.getSectionForStatement(i);
+                if(section == null || (section.sectionLabel.displayName != null && section.sectionLabel.displayName.equals("start"))) {
+                    continue;
+                }
+                involvedStatements[section.beginIndex - 1] = true;
             }
         }
 

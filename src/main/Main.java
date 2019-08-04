@@ -46,13 +46,14 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-//            if(!smaliFile.getPath().equals("data/co.cuvva.hourly-4336.apk-smali/com/appsflyer/j.smali")) {
+//            if(!smaliFile.getPath().equals("data/com.tescobank.mobile-10003003.apk-smali/io/card/payment/CreditCard.smali")) {
 //                continue;
 //            }
 
             // skip some well-known libraries
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/kotlin") &&
+                    !smaliFile.getPath().startsWith("data/" + apkName + "-smali/org/apache") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/android") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/google/zxing") &&
                     !smaliFile.getPath().startsWith("data/" + apkName + "-smali/com/facebook") &&
@@ -70,12 +71,6 @@ public class Main {
             } else {
                 System.out.println("Skipping file " + smaliFile.getPath());
             }
-        }
-
-        // insert snippets in the database if they do not exist yet
-        System.out.println("Writing to database...");
-        for(StringSnippet snippet : snippets) {
-            database.insertSnippet(snippet);
         }
 
         System.out.println("Snippets: " + snippets.size());

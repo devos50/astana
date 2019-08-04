@@ -325,6 +325,13 @@ public class RegisterDependencyGraph {
                 if(stmtNode.op != Op.GOTO && stmtNode.op != Op.GOTO_16 && stmtNode.op != Op.GOTO_32) {
                     statementToRegister.get(currentStmtIndex).add(getActiveRegister(jumpStmtNode.a));
                 }
+                else {
+                    // we make GOTO statements dependent on every previous statement in the section
+                    MethodSection currentSection = methodExecutionPath.method.getSectionForStatement(currentStmtIndex);
+                    for(int loopStmtIndex = currentStmtIndex - 1; loopStmtIndex >= currentSection.beginIndex; loopStmtIndex--) {
+                        statementToRegister.get(currentStmtIndex).addAll(statementToRegister.get(loopStmtIndex));
+                    }
+                }
             }
             else if(stmtNode instanceof DexLabelStmtNode) {
                 // TODO ignore labels for now!
