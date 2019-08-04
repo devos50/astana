@@ -235,6 +235,9 @@ public class SmaliFileParser {
     }
 
     public Pair<Integer, Integer> findPossibleStringDecryptionStatement(Method method, int stringInitIndex) {
+        // find possible places where a string is decrypted.
+        // to do so, we start at a string declaration, and end when another string declaration is found.
+        List<MethodExecutionPath> paths = new ArrayList<>();
         LinkedList<Pair<Integer, MethodExecutionPath>> queue = new LinkedList<>();
         MethodExecutionPath firstPath = new MethodExecutionPath(method, stringInitIndex, -1);
         queue.add(new ImmutablePair<>(stringInitIndex, firstPath));
@@ -242,25 +245,64 @@ public class SmaliFileParser {
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
             if(queue.size() >= 100000) {
-                return new ImmutablePair<>(-1, -1);
+                break;
             }
 
             Pair<Integer, MethodExecutionPath> pair = queue.remove();
             int currentStmtIndex = pair.getKey();
             MethodExecutionPath currentPath = pair.getValue();
+
+            // are we done?
+            if(currentStmtIndex >= method.methodNode.codeNode.stmts.size()) {
+                paths.add(currentPath);
+                continue;
+            }
+            else {
+                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(currentStmtIndex);
+                if(stmtNode.op == Op.RETURN || stmtNode.op == Op.RETURN_OBJECT || stmtNode.op == Op.RETURN_VOID || stmtNode.op == Op.RETURN_WIDE || stmtNode.op == Op.THROW) {
+                    // we cannot go anywhere from this node
+                    paths.add(currentPath);
+                    continue;
+                }
+
+                if(stringInitIndex != currentStmtIndex && (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO)) {
+                    paths.add(currentPath);
+                    continue;
+                }
+            }
+
+            // if this is a potential string decryption, keep track of it
             Pair<Integer, Integer> decryptPair = isPotentialStringDecryption(method, stringInitIndex, currentStmtIndex);
             if(decryptPair.getKey() != -1 && decryptPair.getValue() != -1) {
-                return decryptPair;
+                currentPath.potentialStringDecryptionStatements.add(decryptPair);
             }
 
             List<ControlFlowGraphJump> jumps = method.controlFlowGraph.getJumps(currentStmtIndex);
             for(ControlFlowGraphJump jump : jumps) {
                 if(jump.jumpType == JumpType.NEXT_STATEMENT || jump.jumpType == JumpType.GOTO_STATEMENT) {
+                    // check if we might be in an infinite loop
+                    if(currentPath.lastGotosTaken.size() > 5) {
+                        boolean areEqual = true;
+                        for(int i = currentPath.lastGotosTaken.size() - 1; i >= currentPath.lastGotosTaken.size() - 5; i--) {
+                            if(currentPath.lastGotosTaken.get(i) != currentStmtIndex) {
+                                areEqual = false;
+                                break;
+                            }
+                        }
+
+                        if(areEqual) {
+                            continue; // don't add this state - we are likely in an infinite loop
+                        }
+                    }
+
+                    if(jump.jumpType == JumpType.GOTO_STATEMENT) {
+                        currentPath.lastGotosTaken.add(currentStmtIndex);
+                    }
                     queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, currentPath));
                 }
                 else {
                     JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex);
-                    if(!currentPath.path.contains(decision)) {
+                    if(!currentPath.path.contains(decision) && currentPath.path.size() < 4) {
                         MethodExecutionPath copied = currentPath.copy();
                         copied.path.add(decision);
                         queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, copied));
@@ -268,14 +310,35 @@ public class SmaliFileParser {
                 }
             }
         }
-        return new ImmutablePair<>(-1, -1);
+
+        if(paths.size() == 0) {
+            return new ImmutablePair<>(-1, -1);
+        }
+
+        // determine whether there are common elements - if so, take the latest
+        Set<Pair<Integer, Integer>> intersection = new HashSet<>(paths.get(0).potentialStringDecryptionStatements);
+        for(MethodExecutionPath path : paths) {
+            intersection.retainAll(path.potentialStringDecryptionStatements);
+        }
+
+        Pair<Integer, Integer> largest = null;
+        for(Pair<Integer, Integer> pair : intersection) {
+            if(largest == null || pair.getKey() > largest.getKey()) {
+                largest = pair;
+            }
+        }
+
+        if(largest == null) {
+            return new ImmutablePair<>(-1, -1);
+        }
+        return largest;
     }
 
     public void process() {
         for (Method method : methods) {
 //            System.out.println("Processing method: " + method.getName());
-            DexMethodNode methodNode = method.methodNode;
-//            if(!methodNode.method.getName().equals("<clinit>")) {
+//            DexMethodNode methodNode = method.methodNode;
+//            if(!methodNode.method.getName().equals("Ubj")) {
 //                continue;
 //            }
 

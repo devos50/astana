@@ -4,6 +4,7 @@ import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.node.insn.JumpStmtNode;
 import com.googlecode.d2j.node.insn.PackedSwitchStmtNode;
 import com.googlecode.d2j.reader.Op;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
@@ -14,16 +15,21 @@ public class MethodExecutionPath {
     public int destStmtIndex;
     public List<JumpDecision> path = new ArrayList<>();
     public RegisterDependencyGraph registerDependencyGraph;
+    public List<Pair<Integer, Integer>> potentialStringDecryptionStatements;
+    public List<Integer> lastGotosTaken = new ArrayList<>();
 
     public MethodExecutionPath(Method method, int stringInitIndex, int stringDecryptIndex) {
         this.method = method;
         this.sourceStmtIndex = stringInitIndex;
         this.destStmtIndex = stringDecryptIndex;
+        this.potentialStringDecryptionStatements = new ArrayList<>();
     }
 
     public MethodExecutionPath copy() {
         MethodExecutionPath copy = new MethodExecutionPath(this.method, this.sourceStmtIndex, this.destStmtIndex);
         copy.path.addAll(this.path);
+        copy.potentialStringDecryptionStatements.addAll(this.potentialStringDecryptionStatements);
+        copy.lastGotosTaken.addAll(this.lastGotosTaken);
         return copy;
     }
 
@@ -99,6 +105,16 @@ public class MethodExecutionPath {
                     continue;
                 }
                 involvedStatements[section.beginIndex - 1] = true;
+            }
+        }
+
+        if(includeJumps) {
+            // include GOTO statements
+            for(Integer visitedStmtIndex : registerDependencyGraph.visitedStatements) {
+                DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(visitedStmtIndex);
+                if(stmtNode.op == Op.GOTO || stmtNode.op == Op.GOTO_16 || stmtNode.op == Op.GOTO_32) {
+                    involvedStatements[visitedStmtIndex] = true;
+                }
             }
         }
 

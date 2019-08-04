@@ -178,7 +178,7 @@ public class Method {
         queue.add(new ImmutablePair<>(sourceStmtIndex, firstPath));
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
-            if(queue.size() >= 100000) {
+            if(queue.size() >= 100000 || paths.size() >= 2000) {
                 return paths;
             }
 
@@ -193,6 +193,25 @@ public class Method {
             List<ControlFlowGraphJump> jumps = controlFlowGraph.getJumps(currentStmtIndex);
             for(ControlFlowGraphJump jump : jumps) {
                 if(jump.jumpType == JumpType.NEXT_STATEMENT || jump.jumpType == JumpType.GOTO_STATEMENT) {
+                    // check if we might be in an infinite loop
+                    if(currentPath.lastGotosTaken.size() > 5) {
+                        boolean areEqual = true;
+                        for(int i = currentPath.lastGotosTaken.size() - 1; i >= currentPath.lastGotosTaken.size() - 5; i--) {
+                            if(currentPath.lastGotosTaken.get(i) != currentStmtIndex) {
+                                areEqual = false;
+                                break;
+                            }
+                        }
+
+                        if(areEqual) {
+                            continue; // don't add this state - we are likely in an infinite loop
+                        }
+                    }
+
+                    if(jump.jumpType == JumpType.GOTO_STATEMENT) {
+                        currentPath.lastGotosTaken.add(currentStmtIndex);
+                    }
+
                     queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, currentPath));
                 }
                 else {

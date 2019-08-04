@@ -11,6 +11,7 @@ public class RegisterDependencyGraph {
     public Map<RegisterDependencyNode, List<RegisterDependencyNode>> adjacency = new HashMap<>();
     public Map<Integer, RegisterDependencyNode> activeRegister = new HashMap<>();
     public ArrayList<Set<RegisterDependencyNode>> statementToRegister;
+    public Set<Integer> visitedStatements = new HashSet<>();
     public Set<Integer> undefinedRegisters;
 
     public RegisterDependencyGraph(MethodExecutionPath methodExecutionPath) {
@@ -113,6 +114,7 @@ public class RegisterDependencyGraph {
         int currentJumpIndex = 0;
         while(true) {
             DexStmtNode stmtNode = methodExecutionPath.method.methodNode.codeNode.stmts.get(currentStmtIndex);
+            visitedStatements.add(currentStmtIndex);
 //            System.out.println(stmtNode.op + "(" + currentStmtIndex + ")");
 
             if(stmtNode instanceof ConstStmtNode) {
@@ -213,7 +215,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, getActiveRegister(castNode.b));
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.SGET || stmtNode.op == Op.SGET_BOOLEAN || stmtNode.op == Op.SGET_OBJECT || stmtNode.op == Op.SGET_WIDE) {
+            else if(stmtNode.op == Op.SGET || stmtNode.op == Op.SGET_BOOLEAN || stmtNode.op == Op.SGET_OBJECT || stmtNode.op == Op.SGET_WIDE || stmtNode.op == Op.SGET_SHORT || stmtNode.op == Op.SGET_CHAR) {
                 // we are getting a field which is stored in a new register
                 FieldStmtNode fieldStmtNode = (FieldStmtNode) stmtNode;
                 RegisterDependencyNode newRegister = makeNewRegister(fieldStmtNode.a);
@@ -237,7 +239,7 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, dependencyRegister);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR || stmtNode.op == Op.APUT_BYTE || stmtNode.op == Op.APUT_WIDE) {
+            else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR || stmtNode.op == Op.APUT_BYTE || stmtNode.op == Op.APUT_WIDE || stmtNode.op == Op.APUT_SHORT) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.a));
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.c));
@@ -324,13 +326,6 @@ public class RegisterDependencyGraph {
                 JumpStmtNode jumpStmtNode = (JumpStmtNode) stmtNode;
                 if(stmtNode.op != Op.GOTO && stmtNode.op != Op.GOTO_16 && stmtNode.op != Op.GOTO_32) {
                     statementToRegister.get(currentStmtIndex).add(getActiveRegister(jumpStmtNode.a));
-                }
-                else {
-                    // we make GOTO statements dependent on every previous statement in the section
-                    MethodSection currentSection = methodExecutionPath.method.getSectionForStatement(currentStmtIndex);
-                    for(int loopStmtIndex = currentStmtIndex - 1; loopStmtIndex >= currentSection.beginIndex; loopStmtIndex--) {
-                        statementToRegister.get(currentStmtIndex).addAll(statementToRegister.get(loopStmtIndex));
-                    }
                 }
             }
             else if(stmtNode instanceof DexLabelStmtNode) {

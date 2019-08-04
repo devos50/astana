@@ -144,7 +144,7 @@ public class StringDecryptor {
         String className = snippet.method.methodNode.method.getOwner();
         className = className.substring(1, className.length() - 1).replace("/", ".");
         String timeoutCommand = OSValidator.isMac() ? "gtimeout" : "timeout";
-        String command = timeoutCommand + " 2 java -noverify -cp data/AndroidStubs.jar:temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null";
+        String command = timeoutCommand + " 5 java -noverify -cp data/AndroidStubs.jar:temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null";
 //        System.out.println(command);
         Process p = Runtime.getRuntime().exec(command);
         String line = null;
