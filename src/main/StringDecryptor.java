@@ -184,8 +184,13 @@ public class StringDecryptor {
 
 //            if(result != 0) { System.exit(1); }
 
-        } catch (InterruptedException | SQLException e) {
+        } catch (InterruptedException | IllegalThreadStateException | SQLException e) {
+            System.out.println("Caught exception: ");
             e.printStackTrace();
+
+            snippet.executionResultCode = 1;
+            snippet.resultStderr = e.getMessage();
+            database.updateSnippet(snippet);
         }
     }
 }

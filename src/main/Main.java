@@ -44,7 +44,7 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-//            if(!smaliFile.getPath().equals("data/com.lloydsbank.businessmobile-4903.apk-smali/tttttt/kbbbkk$kkkkbk.smali")) {
+//            if(!smaliFile.getPath().equals("data/uk.co.tsb.newmobilebank-2021071806.apk-smali/com/ideaknow/api/client/TsbApi.smali")) {
 //                continue;
 //            }
 
