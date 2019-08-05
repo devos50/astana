@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 import static com.googlecode.d2j.DexConstants.*;
 
@@ -150,7 +151,8 @@ public class StringDecryptor {
         String line = null;
         String finalString = "";
         try {
-            int result = p.waitFor();
+            p.waitFor(5, TimeUnit.SECONDS);
+            int result = p.exitValue();
 //            System.out.println("Process exit code: " + result);
 //            System.out.println();
 //            System.out.println("Result:");
