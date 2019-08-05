@@ -318,7 +318,8 @@ public class RegisterDependencyGraph {
                 // TODO ignore throw!
             }
             else if(stmtNode.op == Op.CHECK_CAST) {
-                // TODO ignore check-cast for now!
+                TypeStmtNode typeStmtNode = (TypeStmtNode) stmtNode;
+                statementToRegister.get(currentStmtIndex).add(getActiveRegister(typeStmtNode.a));
             }
             else if(stmtNode.op == Op.RETURN || stmtNode.op == Op.RETURN_OBJECT || stmtNode.op == Op.RETURN_VOID) {
                 // TODO ignore returns for now!

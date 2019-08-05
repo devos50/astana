@@ -95,6 +95,7 @@ public class StringDecryptor {
 
         // create the class
         DexClassNode classNode = new DexClassNode(ACC_PUBLIC, snippet.method.methodNode.method.getOwner(), "Ljava/lang/Object;", null);
+        classNode.fields = snippet.rootNode.fields;
         classNode.methods = new ArrayList<>();
         classNode.methods.add(mn);
         classNode.methods.add(mainMethodNode);

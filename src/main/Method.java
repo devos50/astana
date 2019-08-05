@@ -18,6 +18,7 @@ public class Method {
     public DexMethodNode methodNode;
     public ControlFlowGraph controlFlowGraph;
     public List<MethodSection> sections = new ArrayList<>();
+    public int firstStmtIndex = 0;
 
     public Method(String apkPath, File file, DexMethodNode methodNode) {
         this.apkPath = apkPath;
@@ -76,6 +77,7 @@ public class Method {
         MethodSection beginSection = null;
         DexStmtNode firstStmtNode = methodNode.codeNode.stmts.get(0);
         if(firstStmtNode instanceof DexLabelStmtNode) {
+            firstStmtIndex = 1;
             DexLabelStmtNode labelNode = (DexLabelStmtNode) firstStmtNode;
             labelNode.label.displayName = "start";
             beginSection = new MethodSection(methodNode, labelNode.label);
@@ -215,7 +217,7 @@ public class Method {
                     queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, currentPath));
                 }
                 else {
-                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex);
+                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex, jump.jumpType);
                     if(!currentPath.path.contains(decision)) {
                         MethodExecutionPath copied = currentPath.copy();
                         copied.path.add(decision);

@@ -33,6 +33,15 @@ public class MethodExecutionPath {
         return copy;
     }
 
+    public boolean containsExceptionJump() {
+        for(JumpDecision decision : path) {
+            if(decision.jumpType == JumpType.TRY_CATCH) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void buildRegisterDependencyGraph() {
         this.registerDependencyGraph = new RegisterDependencyGraph(this);
         this.registerDependencyGraph.build();

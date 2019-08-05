@@ -107,7 +107,7 @@ public class SmaliFileParser {
 
         // we now check if there are undefined registers - if there are, create another dependency graph
         if(undefinedRegisters.size() > 0) {
-            List<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(0, snippet.stringInitIndex);
+            List<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(snippet.method.firstStmtIndex, snippet.stringInitIndex);
             statementsSet = new ArrayList<>();
             for(MethodExecutionPath backwardPath : backwardPaths) {
                 Set<Integer> statementsForPath = new HashSet<>();
@@ -199,6 +199,13 @@ public class SmaliFileParser {
             }
         }
 
+        if (stmtNode.op == Op.CHECK_CAST) {
+            TypeStmtNode typeStmtNode = (TypeStmtNode) stmtNode;
+            if(typeStmtNode.type.equals("Ljava/lang/String;")) {
+                potentialStringDecryption = new ImmutablePair<>(stmtIndex, typeStmtNode.a);
+            }
+        }
+
         if(potentialStringDecryption == null) {
             return new ImmutablePair<>(-1, -1);
         }
@@ -223,7 +230,7 @@ public class SmaliFileParser {
 //                    System.out.println("Processing str: " + stringInitNode.value.toString());
                     Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(method, stmtIndex);
                     if(pair.getKey() != -1) {
-                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, method, stmtIndex);
+                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, rootNode, method, stmtIndex);
                         snippet.stringDecryptedIndex = pair.getKey();
                         snippet.stringResultRegister = pair.getValue();
                         snippets.add(snippet);
@@ -301,7 +308,7 @@ public class SmaliFileParser {
                     queue.add(new ImmutablePair<>(jump.toNode.stmtIndex, currentPath));
                 }
                 else {
-                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex);
+                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex, jump.jumpType);
                     if(!currentPath.path.contains(decision) && currentPath.path.size() < 4) {
                         MethodExecutionPath copied = currentPath.copy();
                         copied.path.add(decision);
@@ -316,12 +323,22 @@ public class SmaliFileParser {
         }
 
         // determine whether there are common elements - if so, take the latest
-        Set<Pair<Integer, Integer>> intersection = new HashSet<>(paths.get(0).potentialStringDecryptionStatements);
+        Set<Pair<Integer, Integer>> intersection = null;
         for(MethodExecutionPath path : paths) {
-            intersection.retainAll(path.potentialStringDecryptionStatements);
+            if(path.containsExceptionJump()) {
+                continue; // ignore this path - we only consider "happy flow" paths
+            }
+
+            if(intersection == null) {
+                intersection = new HashSet<>(path.potentialStringDecryptionStatements);
+            }
+            else {
+                intersection.retainAll(path.potentialStringDecryptionStatements);
+            }
         }
 
         Pair<Integer, Integer> largest = null;
+        if(intersection == null) { intersection = new HashSet<>(); }
         for(Pair<Integer, Integer> pair : intersection) {
             if(largest == null || pair.getKey() > largest.getKey()) {
                 largest = pair;
@@ -338,7 +355,7 @@ public class SmaliFileParser {
         for (Method method : methods) {
 //            System.out.println("Processing method: " + method.getName());
 //            DexMethodNode methodNode = method.methodNode;
-//            if(!methodNode.method.getName().equals("Ubj")) {
+//            if(!methodNode.method.getName().equals("onSubscribe")) {
 //                continue;
 //            }
 

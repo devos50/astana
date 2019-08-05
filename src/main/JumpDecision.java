@@ -4,10 +4,12 @@ public class JumpDecision {
 
     public int fromStmtIndex;
     public int toStmtIndex;
+    public int jumpType;
 
-    public JumpDecision(int fromStmtIndex, int toStmtIndex) {
+    public JumpDecision(int fromStmtIndex, int toStmtIndex, int jumpType) {
         this.fromStmtIndex = fromStmtIndex;
         this.toStmtIndex = toStmtIndex;
+        this.jumpType = jumpType;
     }
 
     @Override

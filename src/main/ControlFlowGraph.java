@@ -124,7 +124,7 @@ public class ControlFlowGraph {
                     for(MethodSection trySection : trySections) {
                         // for simplicity, just make a connection to the last eligible statement of all try sections
                         int fromNodeIndex = -1;
-                        for(int stmtIndex = trySection.endIndex - 1; stmtIndex > trySection.beginIndex; stmtIndex--) {
+                        for(int stmtIndex = trySection.endIndex - 1; stmtIndex >= trySection.beginIndex; stmtIndex--) {
                             DexStmtNode currentNode = method.methodNode.codeNode.stmts.get(stmtIndex);
                             if(currentNode.op != Op.GOTO && currentNode.op != Op.GOTO_16 && currentNode.op != Op.GOTO_32) {
                                 fromNodeIndex = stmtIndex;

@@ -1,5 +1,6 @@
 package main;
 
+import com.googlecode.d2j.node.DexClassNode;
 import com.googlecode.d2j.node.insn.ConstStmtNode;
 import com.googlecode.d2j.node.insn.DexStmtNode;
 import com.googlecode.d2j.reader.Op;
@@ -12,7 +13,8 @@ import java.util.*;
 public class StringSnippet {
     public final String apkPath;
     public final File file;
-    public Method method;
+    public final DexClassNode rootNode;
+    public final Method method;
     public ConstStmtNode stringInitNode;
     public int stringInitIndex;
     public int stringDecryptedIndex;
@@ -27,9 +29,10 @@ public class StringSnippet {
     public int executionResultCode;
     public String resultStderr = null;
 
-    public StringSnippet(String apkPath, File file, Method method, int stringInitIndex) {
+    public StringSnippet(String apkPath, File file, DexClassNode rootNode, Method method, int stringInitIndex) {
         this.apkPath = apkPath;
         this.file = file;
+        this.rootNode = rootNode;
         this.method = method;
         this.stringInitIndex = stringInitIndex;
         this.stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(stringInitIndex);
