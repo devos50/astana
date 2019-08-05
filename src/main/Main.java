@@ -83,6 +83,7 @@ public class Main {
         }
 
         database.setPreprocessed(apkName, numStrings);
+        snippets = new ArrayList<>();
     }
 
     public static void main(String[] args) throws IOException, SQLException, ParseException {
