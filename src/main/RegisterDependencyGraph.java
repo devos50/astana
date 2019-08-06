@@ -211,8 +211,9 @@ public class RegisterDependencyGraph {
             else if(stmtNode.op == Op.MOVE || stmtNode.op == Op.MOVE_OBJECT || stmtNode.op == Op.MOVE_OBJECT_FROM16 ||
                     stmtNode.op == Op.MOVE_WIDE || stmtNode.op == Op.MOVE_WIDE_FROM16 || stmtNode.op == Op.MOVE_FROM16) {
                 Stmt2RNode castNode = (Stmt2RNode) stmtNode;
+                RegisterDependencyNode dependencyRegister = getActiveRegister(castNode.b);
                 RegisterDependencyNode newRegister = makeNewRegister(castNode.a);
-                makeDependency(newRegister, getActiveRegister(castNode.b));
+                makeDependency(newRegister, dependencyRegister);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
             else if(stmtNode.op == Op.SGET || stmtNode.op == Op.SGET_BOOLEAN || stmtNode.op == Op.SGET_OBJECT || stmtNode.op == Op.SGET_WIDE || stmtNode.op == Op.SGET_SHORT || stmtNode.op == Op.SGET_CHAR) {

@@ -37,6 +37,10 @@ public class Method {
                 PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) node;
                 jumpLabels.addAll(Arrays.asList(switchNode.labels));
             }
+            else if(node instanceof SparseSwitchStmtNode) {
+                SparseSwitchStmtNode switchNode = (SparseSwitchStmtNode) node;
+                jumpLabels.addAll(Arrays.asList(switchNode.labels));
+            }
         }
         if(this.methodNode.codeNode.tryStmts != null) {
             for(TryCatchNode tryCatchNode : this.methodNode.codeNode.tryStmts) {

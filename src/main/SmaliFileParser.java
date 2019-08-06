@@ -52,122 +52,6 @@ public class SmaliFileParser {
         return null;
     }
 
-    public void processSnippet(StringSnippet snippet) {
-        // find all possible paths from the string declaration to the point where the string is decrypted
-        List<MethodExecutionPath> stringPaths = snippet.method.getExecutionPaths(snippet.stringInitIndex, snippet.stringDecryptedIndex);
-        List<Set<Integer>> statementsSet = new ArrayList<>();
-
-        if(stringPaths.size() == 0) {
-            snippet.stringIsEncrypted = false;
-            snippet.finalize();
-            return;
-        }
-
-        // build register dependency graphs and compute involved statements
-        boolean[] involvedStatements = new boolean[snippet.method.methodNode.codeNode.stmts.size()];
-        Set<Integer> undefinedRegisters = new HashSet<>();
-        for(MethodExecutionPath path : stringPaths) {
-            path.buildRegisterDependencyGraph();
-            RegisterDependencyNode rootNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
-            statementsSet.add(path.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
-            Set<RegisterDependencyNode> dependencies = path.registerDependencyGraph.getDependencies(rootNode);
-            for(Integer undefinedRegister : path.registerDependencyGraph.undefinedRegisters) {
-                if(dependencies.contains(new RegisterDependencyNode(undefinedRegister, 0))) {
-                    undefinedRegisters.add(undefinedRegister);
-                }
-            }
-
-            // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
-            ConstStmtNode stringInitNode = (ConstStmtNode) snippet.method.methodNode.codeNode.stmts.get(snippet.stringInitIndex);
-            RegisterDependencyNode destNode = new RegisterDependencyNode(stringInitNode.a, 1);
-            RegisterDependencyNode sourceNode = path.registerDependencyGraph.activeRegister.get(snippet.stringResultRegister);
-            if(!path.registerDependencyGraph.hasDependency(sourceNode, destNode)) {
-                snippet.stringIsEncrypted = false;
-                snippet.finalize();
-                return;
-            }
-        }
-
-        // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
-        boolean areEqual = true;
-        for(int i = 0; i < statementsSet.size() - 1; i++) {
-            if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
-                areEqual = false;
-                break;
-            }
-        }
-
-        // compute involved statements
-        for(MethodExecutionPath path : stringPaths) {
-            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(snippet.stringResultRegister, !areEqual);
-            for(int i = 0; i < pathInvolvedStatements.length; i++) {
-                involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
-            }
-        }
-
-        // we now check if there are undefined registers - if there are, create another dependency graph
-        if(undefinedRegisters.size() > 0) {
-            List<MethodExecutionPath> backwardPaths = snippet.method.getExecutionPaths(snippet.method.firstStmtIndex, snippet.stringInitIndex);
-            statementsSet = new ArrayList<>();
-            for(MethodExecutionPath backwardPath : backwardPaths) {
-                Set<Integer> statementsForPath = new HashSet<>();
-                backwardPath.buildRegisterDependencyGraph();
-                for(Integer undefinedRegister : undefinedRegisters) {
-                    RegisterDependencyNode rootNode = backwardPath.registerDependencyGraph.activeRegister.get(undefinedRegister);
-                    Set<RegisterDependencyNode> dependencies = backwardPath.registerDependencyGraph.getDependencies(rootNode);
-                    statementsForPath.addAll(backwardPath.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
-
-                    // if this undefined register depends on another undefined register, the string is probably not encrypted
-                    for(Integer undefinedRegister2 : backwardPath.registerDependencyGraph.undefinedRegisters) {
-                        if(dependencies.contains(new RegisterDependencyNode(undefinedRegister2, 0))) {
-                            snippet.stringIsEncrypted = false;
-                            snippet.finalize();
-                            return;
-                        }
-                    }
-                }
-                statementsSet.add(statementsForPath);
-            }
-
-            // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
-            areEqual = true;
-            for(int i = 0; i < statementsSet.size() - 1; i++) {
-                if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
-                    areEqual = false;
-                    break;
-                }
-            }
-
-            for(MethodExecutionPath backwardPath : backwardPaths) {
-                for(Integer undefinedRegister : undefinedRegisters) {
-                    boolean[] pathInvolvedStatements = backwardPath.computeInvolvedStatements(undefinedRegister, !areEqual);
-                    for(int i = 0; i < pathInvolvedStatements.length; i++) {
-                        involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
-                    }
-                }
-            }
-        }
-
-        for(int i = 0; i < involvedStatements.length; i++) {
-            DexStmtNode stmtNode = snippet.method.methodNode.codeNode.stmts.get(i);
-            if(involvedStatements[i]) {
-                snippet.extractedStatements.add(stmtNode);
-            }
-        }
-
-        snippet.finalize();
-
-        // we check whether the snippet is not "too basic", i.e., it is not just the creation of a new string based on our encrypted string
-        List<DexStmtNode> prunedStatements = snippet.getPrunedStatementsList();
-        if(prunedStatements.size() == 3 && prunedStatements.get(1).op == Op.NEW_INSTANCE && prunedStatements.get(2).op == Op.INVOKE_DIRECT) {
-            snippet.stringIsEncrypted = false;
-        }
-
-        if(snippet.stringIsEncrypted) {
-            snippets.add(snippet);
-        }
-    }
-
     public Pair<Integer, Integer> isPotentialStringDecryption(Method method, int stringInitStmtIndex, int stmtIndex) {
         DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
         Pair<Integer, Integer> potentialStringDecryption = null;
@@ -225,23 +109,20 @@ public class SmaliFileParser {
             DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
             if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                 ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                if(stringInitNode.value.toString().length() > 0) {
+                if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("MEUTPM")) {
                     numStrings++;
 //                    System.out.println("Processing str: " + stringInitNode.value.toString());
-                    Pair<Integer, Integer> pair = findPossibleStringDecryptionStatement(method, stmtIndex);
-                    if(pair.getKey() != -1) {
-                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, rootNode, method, stmtIndex);
-                        snippet.stringDecryptedIndex = pair.getKey();
-                        snippet.stringResultRegister = pair.getValue();
-                        snippets.add(snippet);
-                    }
+                    List<Pair<Integer, Integer>> pairs = findPossibleStringDecryptionStatement(method, stmtIndex);
+                    StringSnippet snippet = new StringSnippet(apkPath, smaliFile, rootNode, method, stmtIndex);
+                    snippet.stringDecryptPairs = pairs;
+                    snippets.add(snippet);
                 }
             }
         }
         return snippets;
     }
 
-    public Pair<Integer, Integer> findPossibleStringDecryptionStatement(Method method, int stringInitIndex) {
+    public List<Pair<Integer, Integer>> findPossibleStringDecryptionStatement(Method method, int stringInitIndex) {
         // find possible places where a string is decrypted.
         // to do so, we start at a string declaration, and end when another string declaration is found.
         List<MethodExecutionPath> paths = new ArrayList<>();
@@ -319,7 +200,7 @@ public class SmaliFileParser {
         }
 
         if(paths.size() == 0) {
-            return new ImmutablePair<>(-1, -1);
+            return new ArrayList<>();
         }
 
         // determine whether there are common elements - if so, take the latest
@@ -337,34 +218,24 @@ public class SmaliFileParser {
             }
         }
 
-        Pair<Integer, Integer> largest = null;
-        if(intersection == null) { intersection = new HashSet<>(); }
-        for(Pair<Integer, Integer> pair : intersection) {
-            if(largest == null || pair.getKey() > largest.getKey()) {
-                largest = pair;
-            }
-        }
-
-        if(largest == null) {
-            return new ImmutablePair<>(-1, -1);
-        }
-        return largest;
+        List<Pair<Integer, Integer>> intersectionList = new ArrayList<>(intersection);
+        Collections.sort(intersectionList);
+        Collections.reverse(intersectionList);
+        return intersectionList;
     }
 
     public void process() {
         for (Method method : methods) {
 //            System.out.println("Processing method: " + method.getName());
-//            DexMethodNode methodNode = method.methodNode;
-//            if(!methodNode.method.getName().equals("onSubscribe")) {
-//                continue;
-//            }
+            DexMethodNode methodNode = method.methodNode;
+            if(!methodNode.method.getName().equals("zfd")) {
+                continue;
+            }
 
             method.buildCFG();
 
-            List<StringSnippet> snippets = getPotentialStringSnippets(method);
-            for(StringSnippet snippet : snippets) {
-                processSnippet(snippet);
-            }
+            List<StringSnippet> methodSnippets = getPotentialStringSnippets(method);
+            snippets.addAll(methodSnippets);
         }
     }
 }

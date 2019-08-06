@@ -8,6 +8,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.File;
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.*;
 
 public class StringSnippet {
@@ -17,16 +19,17 @@ public class StringSnippet {
     public final Method method;
     public ConstStmtNode stringInitNode;
     public int stringInitIndex;
-    public int stringDecryptedIndex;
+
+    public List<Pair<Integer, Integer>> stringDecryptPairs;
+    public int currentStringDecryptedIndex;
+    public int currentStringResultRegister;
+
     public List<DexStmtNode> extractedStatements = new ArrayList<>();
-    public HashMap<Pair<Integer, Integer>, Integer> frequencyMap = new HashMap<>();
-    public int stringResultRegister = 0;
-    public boolean stringIsEncrypted = true;
+    public boolean isValidSlice = false;
     public boolean isDecrypted = false;
-    public boolean finalized = true;
     public boolean decryptionSuccessful = false;
     public String decryptedString = null;
-    public int executionResultCode;
+    public int resultExecutionCode = -1;
     public String resultStderr = null;
 
     public StringSnippet(String apkPath, File file, DexClassNode rootNode, Method method, int stringInitIndex) {
@@ -42,15 +45,6 @@ public class StringSnippet {
         return this.stringInitNode.value.toString();
     }
 
-    public List<String> getPrintableStatements() {
-        List<DexStmtNode> statements = getPrunedStatementsList();
-        List<String> stringStatements = new ArrayList<>();
-        for(int stmtIndex = 0; stmtIndex < statements.size(); stmtIndex++) {
-            stringStatements.add(statements.get(stmtIndex).op.toString());
-        }
-        return stringStatements;
-    }
-
     public List<DexStmtNode> getPrunedStatementsList() {
         List<DexStmtNode> statements = new ArrayList<>();
         for(int stmtIndex = 0; stmtIndex < extractedStatements.size(); stmtIndex++) {
@@ -61,77 +55,140 @@ public class StringSnippet {
         return statements;
     }
 
-    public void finalize() {
-        // finalize the snippet, first make sure the string declaration is the first statement in the snippet
-        extractedStatements.remove(stringInitNode);
-        extractedStatements.add(0, stringInitNode);
+    public void computeSlice() {
+        extractedStatements = new ArrayList<>();
+        isValidSlice = false;
 
-        // compute the frequency map
-        for(int i = 0; i < extractedStatements.size(); i++) {
-            DexStmtNode node = extractedStatements.get(i);
-            if(i != extractedStatements.size() - 1) {
-                DexStmtNode nextNode = extractedStatements.get(i + 1);
-                if(node.op == null || nextNode.op == null) { continue; }
-                Pair<Integer, Integer> pair = new ImmutablePair<>(normalizeOpCode(node.op.opcode), normalizeOpCode(nextNode.op.opcode));
-                if(!frequencyMap.containsKey(pair)) {
-                    frequencyMap.put(pair, 0);
+        // find all possible paths from the string declaration to the point where the string is decrypted
+        List<MethodExecutionPath> stringPaths = method.getExecutionPaths(stringInitIndex, currentStringDecryptedIndex);
+        List<Set<Integer>> statementsSet = new ArrayList<>();
+
+        if(stringPaths.size() == 0) {
+            return;
+        }
+
+        // build register dependency graphs and compute involved statements
+        boolean[] involvedStatements = new boolean[method.methodNode.codeNode.stmts.size()];
+        Set<Integer> undefinedRegisters = new HashSet<>();
+        for(MethodExecutionPath path : stringPaths) {
+            path.buildRegisterDependencyGraph();
+            RegisterDependencyNode rootNode = path.registerDependencyGraph.activeRegister.get(currentStringResultRegister);
+            statementsSet.add(path.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
+            Set<RegisterDependencyNode> dependencies = path.registerDependencyGraph.getDependencies(rootNode);
+            for(Integer undefinedRegister : path.registerDependencyGraph.undefinedRegisters) {
+                if(dependencies.contains(new RegisterDependencyNode(undefinedRegister, 0))) {
+                    undefinedRegisters.add(undefinedRegister);
                 }
-                frequencyMap.put(pair, frequencyMap.get(pair) + 1);
+            }
+
+            // check whether the original string declaration is an involved register. If not, this string is probably not encrypted
+            ConstStmtNode stringInitNode = (ConstStmtNode) method.methodNode.codeNode.stmts.get(stringInitIndex);
+            RegisterDependencyNode destNode = new RegisterDependencyNode(stringInitNode.a, 1);
+            RegisterDependencyNode sourceNode = path.registerDependencyGraph.activeRegister.get(currentStringResultRegister);
+            if(!path.registerDependencyGraph.hasDependency(sourceNode, destNode)) {
+                return;
             }
         }
 
-        finalized = true;
+        // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
+        boolean areEqual = true;
+        for(int i = 0; i < statementsSet.size() - 1; i++) {
+            if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
+                areEqual = false;
+                break;
+            }
+        }
+
+        // compute involved statements
+        for(MethodExecutionPath path : stringPaths) {
+            boolean[] pathInvolvedStatements = path.computeInvolvedStatements(currentStringResultRegister, !areEqual);
+            for(int i = 0; i < pathInvolvedStatements.length; i++) {
+                involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
+            }
+        }
+
+        // we now check if there are undefined registers - if there are, create another dependency graph
+        if(undefinedRegisters.size() > 0) {
+            List<MethodExecutionPath> backwardPaths = method.getExecutionPaths(method.firstStmtIndex, stringInitIndex);
+            statementsSet = new ArrayList<>();
+            for(MethodExecutionPath backwardPath : backwardPaths) {
+                Set<Integer> statementsForPath = new HashSet<>();
+                backwardPath.buildRegisterDependencyGraph();
+
+                for(Integer undefinedRegister : undefinedRegisters) {
+                    RegisterDependencyNode rootNode = backwardPath.registerDependencyGraph.activeRegister.get(undefinedRegister);
+                    Set<RegisterDependencyNode> dependencies = backwardPath.registerDependencyGraph.getDependencies(rootNode);
+                    statementsForPath.addAll(backwardPath.registerDependencyGraph.getInvolvedStatementsForNode(rootNode));
+
+                    // if this undefined register depends on another undefined register, the string is probably not encrypted
+                    for(Integer undefinedRegister2 : backwardPath.registerDependencyGraph.undefinedRegisters) {
+                        if(dependencies.contains(new RegisterDependencyNode(undefinedRegister2, 0))) {
+                            return;
+                        }
+                    }
+                }
+                statementsSet.add(statementsForPath);
+            }
+
+            // test whether the statement sets are the same, if so, jumps do not matter and we can exclude them
+            areEqual = true;
+            for(int i = 0; i < statementsSet.size() - 1; i++) {
+                if(!statementsSet.get(i).equals(statementsSet.get(i + 1))) {
+                    areEqual = false;
+                    break;
+                }
+            }
+
+            for(MethodExecutionPath backwardPath : backwardPaths) {
+                for(Integer undefinedRegister : undefinedRegisters) {
+                    boolean[] pathInvolvedStatements = backwardPath.computeInvolvedStatements(undefinedRegister, !areEqual);
+                    for(int i = 0; i < pathInvolvedStatements.length; i++) {
+                        involvedStatements[i] = involvedStatements[i] || pathInvolvedStatements[i];
+                    }
+                }
+            }
+        }
+
+        for(int i = 0; i < involvedStatements.length; i++) {
+            DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(i);
+            if(involvedStatements[i]) {
+                extractedStatements.add(stmtNode);
+            }
+        }
+
+        // we check whether the snippet is not "too basic", i.e., it is not just the creation of a new string based on our encrypted string
+        List<DexStmtNode> prunedStatements = getPrunedStatementsList();
+        if(!(prunedStatements.size() == 3 && prunedStatements.get(1).op == Op.NEW_INSTANCE && prunedStatements.get(2).op == Op.INVOKE_DIRECT)) {
+            isValidSlice = true;
+        }
     }
 
-    public double[] toVector() {
-        double[] vector = new double[255 * 255];
-        for(Pair<Integer, Integer> key : frequencyMap.keySet()) {
-            int code = key.getKey() * 255 + key.getValue();
-            vector[code] = frequencyMap.get(key);
+    public void decrypt(StringDatabase database) throws IOException, SQLException {
+        // attempt to decrypt the string by iterating over all string decrypt pairs and attempting to decrypt them
+        for(int i = 0; i < stringDecryptPairs.size(); i++) {
+            Pair<Integer, Integer> currentPair = stringDecryptPairs.get(i);
+            currentStringDecryptedIndex = currentPair.getKey();
+            currentStringResultRegister = currentPair.getValue();
+
+            computeSlice();
+            if(!isValidSlice) {
+                System.out.println("Invalid slice for snippet with decrypt index " + currentStringDecryptedIndex);
+                continue;
+            }
+
+            // the slice is valid -> attempt to decrypt
+            System.out.println("Attempt to decrypt string: " + getString() + " (l: " + getString().length() + ", " + file.getPath() + ")" + " (" + currentStringDecryptedIndex + ", reg " + currentStringResultRegister + ")");
+            StringDecryptor decryptor = new StringDecryptor(this, database);
+            decryptionSuccessful = decryptor.decrypt();
+
+            resultExecutionCode = decryptor.resultExecutionCode;
+            resultStderr = decryptor.stderr;
+            decryptedString = decryptor.stdout;
+
+            database.updateSnippet(this);
+            if(decryptionSuccessful) {
+                break;
+            }
         }
-        return vector;
     }
-
-    private int normalizeOpCode(int opcode) {
-        if(opcode == Op.CONST_4.opcode) { opcode = Op.CONST_16.opcode; }
-        if(opcode == Op.CONST_STRING_JUMBO.opcode) { opcode = Op.CONST_STRING.opcode; }
-        return opcode;
-    }
-
-    public double cosineSimilarity(StringSnippet other) {
-        if(!this.finalized || !other.finalized) {
-            throw new RuntimeException("This snippet (or other snippet) not finalized!");
-        }
-
-        double dotProduct = 0.0;
-        double normA = 0.0;
-        double normB = 0.0;
-
-        // we first need the dot product -> will only result if there is overlap
-        Set<Pair<Integer, Integer>> keysA = this.frequencyMap.keySet();
-        Set<Pair<Integer, Integer>> keysB = other.frequencyMap.keySet();
-        Set<Pair<Integer, Integer>> intersection = new HashSet<>(keysA);
-        intersection.retainAll(keysB);
-
-        for(Pair<Integer, Integer> pair : intersection) {
-            dotProduct += this.frequencyMap.get(pair) * other.frequencyMap.get(pair);
-        }
-
-        // compute normalization values
-        Iterator it = this.frequencyMap.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry pair = (Map.Entry)it.next();
-            normA += Math.pow((Integer)pair.getValue(), 2);
-        }
-
-        it = other.frequencyMap.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry pair = (Map.Entry)it.next();
-            normB += Math.pow((Integer)pair.getValue(), 2);
-        }
-
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-    }
-
-
 }

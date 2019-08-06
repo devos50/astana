@@ -126,12 +126,12 @@ public class StringDatabase {
         preparedStatement.setString(3, snippet.file.getPath());
         preparedStatement.setString(4, snippet.method.methodNode.method.getName());
         preparedStatement.setInt(5, snippet.stringInitIndex);
-        preparedStatement.setInt(6, snippet.stringDecryptedIndex);
+        preparedStatement.setInt(6, snippet.currentStringDecryptedIndex);
         preparedStatement.setString(7, snippet.getString());
         preparedStatement.setString(8, String.join(",", involvedStatementsIndices));
         preparedStatement.setBoolean(9, snippet.isDecrypted);
         preparedStatement.setString(10, snippet.decryptedString);
-        preparedStatement.setInt(11, snippet.executionResultCode);
+        preparedStatement.setInt(11, snippet.resultExecutionCode);
         preparedStatement.setString(12, snippet.resultStderr);
         preparedStatement.execute();
     }
@@ -147,7 +147,7 @@ public class StringDatabase {
             PreparedStatement preparedStatement = connection.prepareStatement(sql);
             preparedStatement.setBoolean(1, snippet.isDecrypted);
             preparedStatement.setString(2, snippet.decryptedString);
-            preparedStatement.setInt(3, snippet.executionResultCode);
+            preparedStatement.setInt(3, snippet.resultExecutionCode);
             preparedStatement.setString(4, snippet.resultStderr);
             preparedStatement.setInt(5, existingSnippetId);
             preparedStatement.execute();
@@ -161,7 +161,7 @@ public class StringDatabase {
         preparedStatement.setString(2, snippet.file.getPath());
         preparedStatement.setString(3, snippet.method.methodNode.method.getName());
         preparedStatement.setInt(4, snippet.stringInitIndex);
-        preparedStatement.setInt(5, snippet.stringDecryptedIndex);
+        preparedStatement.setInt(5, snippet.currentStringDecryptedIndex);
         ResultSet rs = preparedStatement.executeQuery();
         if(!rs.next()) { return -1; }
         return rs.getInt(1);

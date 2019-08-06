@@ -44,9 +44,9 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-//            if(!smaliFile.getPath().equals("data/uk.co.santander.spendlytics-2010001.apk-smali/gggggg/dkdkkk$dddkkk.smali")) {
-//                continue;
-//            }
+            if(!smaliFile.getPath().equals("data/com.tescobank.mobile-10003003.apk-smali/r/jjr.smali")) {
+                continue;
+            }
 
             // skip some well-known libraries
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
@@ -75,9 +75,7 @@ public class Main {
 
         // decrypt them
         for(StringSnippet snippet : snippets) {
-//            if(!database.isDecrypted(snippet)) {
-                StringDecryptor.decrypt(snippet, database);
-//            }
+            snippet.decrypt(database);
         }
 
         database.setPreprocessed(apkName, numStrings);

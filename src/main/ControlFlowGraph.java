@@ -3,10 +3,7 @@ package main;
 
 import com.googlecode.d2j.DexLabel;
 import com.googlecode.d2j.node.TryCatchNode;
-import com.googlecode.d2j.node.insn.DexLabelStmtNode;
-import com.googlecode.d2j.node.insn.DexStmtNode;
-import com.googlecode.d2j.node.insn.JumpStmtNode;
-import com.googlecode.d2j.node.insn.PackedSwitchStmtNode;
+import com.googlecode.d2j.node.insn.*;
 import com.googlecode.d2j.reader.Op;
 
 import java.util.*;
@@ -88,8 +85,8 @@ public class ControlFlowGraph {
                     nextNode.prevNodes.add(fromNode);
                 }
             }
-            else if(currentStmtNode instanceof PackedSwitchStmtNode) {
-                PackedSwitchStmtNode switchNode = (PackedSwitchStmtNode) currentStmtNode;
+            else if(currentStmtNode instanceof BaseSwitchStmtNode) {
+                BaseSwitchStmtNode switchNode = (BaseSwitchStmtNode) currentStmtNode;
                 ControlFlowGraphNode fromNode = getNode(currentStmtIndex);
                 for(DexLabel label : switchNode.labels) {
                     MethodSection toSection = method.getSectionForLabel(label);

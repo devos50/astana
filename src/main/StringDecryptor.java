@@ -26,9 +26,18 @@ import static com.googlecode.d2j.DexConstants.*;
 
 public class StringDecryptor {
 
-    public static void decrypt(StringSnippet snippet, StringDatabase database) throws IOException, SQLException {
-        System.out.println("Attempt to decrypt string: " + snippet.getString() + " (l: " + snippet.getString().length() + ", " + snippet.file.getPath() + ")");
+    private final StringSnippet snippet;
+    private final StringDatabase database;
+    public int resultExecutionCode = -1;
+    public String stderr = "";
+    public String stdout = "";
 
+    public StringDecryptor(StringSnippet snippet, StringDatabase database) {
+        this.snippet = snippet;
+        this.database = database;
+    }
+
+    public boolean decrypt() throws IOException, SQLException {
         String methodName = snippet.method.methodNode.method.getName();
 
         // create a method that is called by the main method
@@ -51,18 +60,18 @@ public class StringDecryptor {
             Stmt1RNode newMoveNode = new Stmt1RNode(Op.MOVE_RESULT_OBJECT, 1);
             cn.stmts.remove(cn.stmts.size() - 1);
             cn.stmts.add(newMoveNode);
-            snippet.stringResultRegister = 1;
+            snippet.currentStringResultRegister = 1;
         }
 
         // add the print statement and return-void
         Field f = new Field("Ljava/lang/System;", "out", "Ljava/io/PrintStream;");
-        int printReg = (snippet.stringResultRegister == 0) ? 1 : 0;
+        int printReg = (snippet.currentStringResultRegister == 0) ? 1 : 0;
         FieldStmtNode fsn = new FieldStmtNode(Op.SGET_OBJECT, printReg, 0, f);
         cn.stmts.add(fsn);
 
         String[] paramTypes = new String[]{"Ljava/lang/String;"};
         Method printMethod = new Method("Ljava/io/PrintStream;", "println", paramTypes, "V");
-        int[] args = {printReg, snippet.stringResultRegister};
+        int[] args = {printReg, snippet.currentStringResultRegister};
         MethodStmtNode msn = new MethodStmtNode(Op.INVOKE_VIRTUAL, args, printMethod);
         cn.stmts.add(msn);
 
@@ -109,6 +118,9 @@ public class StringDecryptor {
             log.flush();
         } catch (IOException e) {
             e.printStackTrace();
+            resultExecutionCode = 1;
+            stderr = e.getMessage();
+            return false;
         }
 
         // convert to .dex
@@ -131,67 +143,45 @@ public class StringDecryptor {
             Dex2jar.from(dexReader).reUseReg(false).topoLogicalSort().skipDebug(true).optimizeSynchronized(false).printIR(false).noCode(false).skipExceptions(false).to(jarFile.toPath());
         }
         catch(RuntimeException e) {
-            snippet.executionResultCode = 1;
-
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
             e.printStackTrace(pw);
-            snippet.resultStderr = sw.toString();
-            snippet.isDecrypted = true;
-            database.updateSnippet(snippet);
-            return;
+            resultExecutionCode = 1;
+            stderr = sw.toString();
+            return false;
         }
 
         // run the jar
         String className = snippet.method.methodNode.method.getOwner();
         className = className.substring(1, className.length() - 1).replace("/", ".");
-        String timeoutCommand = OSValidator.isMac() ? "gtimeout" : "timeout";
-        String command = timeoutCommand + " 5 java -noverify -cp data/AndroidStubs.jar:temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null";
-//        System.out.println(command);
+        String command = "java -noverify -cp data/AndroidStubs.jar:temp/isolated.jar:data/" + snippet.apkPath + ".jar " + className + " 2>/dev/null";
         Process p = Runtime.getRuntime().exec(command);
         String line = null;
-        String finalString = "";
         try {
             p.waitFor(5, TimeUnit.SECONDS);
-            int result = p.exitValue();
-//            System.out.println("Process exit code: " + result);
-//            System.out.println();
-//            System.out.println("Result:");
+            resultExecutionCode = p.exitValue();
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
             while ((line = reader.readLine()) != null) {
-//                System.out.println(line);
-                finalString += line;
+                stdout += line;
             }
 
-            line = null;
-            String stderr = "";
             reader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
             while ((line = reader.readLine()) != null) {
                 stderr += line;
                 System.out.println(line);
             }
 
-            snippet.executionResultCode = result;
-            snippet.resultStderr = stderr;
-            snippet.isDecrypted = true;
-
-            if(result == 0 && finalString.length() > 0) {
-                System.out.println("RESULT: " + finalString);
-                snippet.decryptedString = finalString;
-                snippet.decryptionSuccessful = true;
+            if(resultExecutionCode == 0 && stdout.length() > 0) {
+                System.out.println("RESULT: " + stdout);
+                return true;
             }
-
-            database.updateSnippet(snippet);
-
-//            if(result != 0) { System.exit(1); }
-
-        } catch (InterruptedException | IllegalThreadStateException | SQLException e) {
+        } catch (InterruptedException | IllegalThreadStateException e) {
             System.out.println("Caught exception: ");
+            stderr = e.getMessage();
+            resultExecutionCode = 1;
             e.printStackTrace();
-
-            snippet.executionResultCode = 1;
-            snippet.resultStderr = e.getMessage();
-            database.updateSnippet(snippet);
+            return false;
         }
+        return false;
     }
 }
