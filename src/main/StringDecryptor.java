@@ -77,7 +77,7 @@ public class StringDecryptor {
 
         Stmt0RNode returnVoidStmt = new Stmt0RNode(Op.RETURN_VOID);
         cn.stmts.add(returnVoidStmt);
-        cn.visitRegister(30);
+        cn.visitRegister(100);
 
         // create the main method that calls the method we created
         paramTypes = new String[]{"[Ljava/lang/String;"};

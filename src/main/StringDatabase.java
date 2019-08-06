@@ -29,7 +29,7 @@ public class StringDatabase {
                     "string_decrypt_index INTEGER," +
                     "string TEXT," +
                     "statements TEXT," +
-                    "is_decrypted INTEGER," +
+                    "executed INTEGER," +
                     "result TEXT," +
                     "execution_result_code INTEGER," +
                     "stderr TEXT" +
@@ -93,18 +93,33 @@ public class StringDatabase {
         preparedStatement.execute();
     }
 
-    public boolean isDecrypted(StringSnippet snippet) throws SQLException {
+    public boolean isExecuted(StringSnippet snippet) throws SQLException {
         int existingSnippetId = hasSnippet(snippet);
         if(existingSnippetId == -1) {
             return false;
         }
 
-        String sql = "SELECT is_decrypted FROM strings WHERE id = ?";
+        String sql = "SELECT executed FROM strings WHERE id = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setInt(1, existingSnippetId);
         ResultSet rs = preparedStatement.executeQuery();
         rs.next();
         return rs.getBoolean(1);
+    }
+
+    public boolean hasSuccessfulDecryption(StringSnippet snippet) throws SQLException {
+        String sql = "SELECT id FROM strings WHERE apk = ? AND file = ? AND method = ? and string_init_index = ? and length(result) > 0 and execution_result_code = 0";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, snippet.apkPath);
+        preparedStatement.setString(2, snippet.file.getPath());
+        preparedStatement.setString(3, snippet.method.methodNode.method.getName());
+        preparedStatement.setInt(4, snippet.stringInitIndex);
+
+        ResultSet rs = preparedStatement.executeQuery();
+        if(!rs.next()) {
+            return false;
+        }
+        return true;
     }
 
     public void insertSnippet(StringSnippet snippet) throws SQLException {
@@ -143,7 +158,7 @@ public class StringDatabase {
         }
         else {
             // update existing entry
-            String sql = "UPDATE strings SET is_decrypted = ?, result = ?, execution_result_code = ?, stderr = ? WHERE id = ?";
+            String sql = "UPDATE strings SET executed = ?, result = ?, execution_result_code = ?, stderr = ? WHERE id = ?";
             PreparedStatement preparedStatement = connection.prepareStatement(sql);
             preparedStatement.setBoolean(1, snippet.isDecrypted);
             preparedStatement.setString(2, snippet.decryptedString);
@@ -202,7 +217,7 @@ public class StringDatabase {
 
         // decrypted
         int[] decryptedDistribution = new int[128];
-        sql = "SELECT result FROM strings WHERE is_decrypted = 1 AND execution_result_code = 0";
+        sql = "SELECT result FROM strings WHERE executed = 1 AND execution_result_code = 0";
         preparedStatement = connection.prepareStatement(sql);
         rs = preparedStatement.executeQuery();
         total = 0;

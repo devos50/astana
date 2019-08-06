@@ -32,6 +32,16 @@ public class ControlFlowGraph {
         return nodes.get(stmtIndex);
     }
 
+    public ControlFlowGraphJump getJumpTo(int fromStmtIndex, int targetStmtIndex) {
+        ControlFlowGraphNode fromNode = getNode(fromStmtIndex);
+        for(ControlFlowGraphJump jump : adjacency.get(fromNode)) {
+            if(jump.toNode.stmtIndex == targetStmtIndex) {
+                return jump;
+            }
+        }
+        return null;
+    }
+
     public List<ControlFlowGraphJump> getJumps(int stmtIndex) {
         return adjacency.get(getNode(stmtIndex));
     }

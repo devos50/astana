@@ -177,6 +177,39 @@ public class Method {
         return null;
     }
 
+    public List<MethodExecutionPath> getRandomExecutionPathsBackwards(int iterations, int sourceStmtIndex, int destStmtIndex) {
+        System.out.println("Getting random backwards execution paths...");
+        List<MethodExecutionPath> paths = new ArrayList<>();
+        for(int iteration = 0; iteration < iterations; iteration++) {
+            int currentStmtIndex = destStmtIndex;
+            MethodExecutionPath currentPath = new MethodExecutionPath(this, sourceStmtIndex, destStmtIndex);
+            Random rand = new Random();
+            while(true) {
+                if(currentStmtIndex < 0) {
+                    break;
+                }
+                else if(currentStmtIndex == sourceStmtIndex) {
+                    paths.add(currentPath);
+                    break;
+                }
+
+                List<ControlFlowGraphNode> prevNodes = controlFlowGraph.getNode(currentStmtIndex).prevNodes;
+                if(prevNodes.size() == 0) { break; }
+
+                // pick a random previous node
+                ControlFlowGraphNode prevNode = prevNodes.get(rand.nextInt(prevNodes.size()));
+                ControlFlowGraphJump jump = controlFlowGraph.getJumpTo(prevNode.stmtIndex, currentStmtIndex);
+                if(jump.jumpType != JumpType.NEXT_STATEMENT && jump.jumpType != JumpType.GOTO_STATEMENT) {
+                    JumpDecision decision = new JumpDecision(jump.fromNode.stmtIndex, jump.toNode.stmtIndex, jump.jumpType);
+                    currentPath.path.add(0, decision);
+                }
+
+                currentStmtIndex = prevNode.stmtIndex;
+            }
+        }
+        return paths;
+    }
+
     public List<MethodExecutionPath> getExecutionPaths(int sourceStmtIndex, int destStmtIndex) {
         List<MethodExecutionPath> paths = new ArrayList<>();
         LinkedList<Pair<Integer, MethodExecutionPath>> queue = new LinkedList<>();
@@ -185,6 +218,10 @@ public class Method {
         while(!queue.isEmpty()) {
             // if there are too many items in the queue, the method is very complex; return an empty set
             if(queue.size() >= 100000 || paths.size() >= 2000) {
+                // simply try a random walk, maybe it succeeds
+                if(paths.size() == 0 && sourceStmtIndex == 0) {
+                    return getRandomExecutionPathsBackwards(100, sourceStmtIndex, destStmtIndex);
+                }
                 return paths;
             }
 

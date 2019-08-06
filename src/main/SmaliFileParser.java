@@ -109,7 +109,7 @@ public class SmaliFileParser {
             DexStmtNode stmtNode = method.methodNode.codeNode.stmts.get(stmtIndex);
             if (stmtNode.op == Op.CONST_STRING || stmtNode.op == Op.CONST_STRING_JUMBO) {
                 ConstStmtNode stringInitNode = (ConstStmtNode) stmtNode;
-                if(stringInitNode.value.toString().length() > 0 && stringInitNode.value.toString().contains("MEUTPM")) {
+                if(stringInitNode.value.toString().length() > 0) {
                     numStrings++;
 //                    System.out.println("Processing str: " + stringInitNode.value.toString());
                     List<Pair<Integer, Integer>> pairs = findPossibleStringDecryptionStatement(method, stmtIndex);
@@ -218,6 +218,10 @@ public class SmaliFileParser {
             }
         }
 
+        if(intersection == null) {
+            return new ArrayList<>();
+        }
+
         List<Pair<Integer, Integer>> intersectionList = new ArrayList<>(intersection);
         Collections.sort(intersectionList);
         Collections.reverse(intersectionList);
@@ -227,10 +231,10 @@ public class SmaliFileParser {
     public void process() {
         for (Method method : methods) {
 //            System.out.println("Processing method: " + method.getName());
-            DexMethodNode methodNode = method.methodNode;
-            if(!methodNode.method.getName().equals("zfd")) {
-                continue;
-            }
+//            DexMethodNode methodNode = method.methodNode;
+//            if(!methodNode.method.getName().equals("zfd")) {
+//                continue;
+//            }
 
             method.buildCFG();
 

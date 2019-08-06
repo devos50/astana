@@ -19,10 +19,10 @@ public class Main {
 
     public static void processApk(File apkFile) throws SQLException, IOException {
         String apkName = apkFile.getName();
-//        if(database.isPreprocessed(apkName)) {
-//            System.out.println("APK " + apkName + " is already processed - ignoring");
-//            return;
-//        }
+        if(database.isPreprocessed(apkName)) {
+            System.out.println("APK " + apkName + " is already processed - ignoring");
+            return;
+        }
 
         database.addApplication(apkName);
 
@@ -44,9 +44,9 @@ public class Main {
         File analyzePath = new File("data/" + apkName + "-smali");
         int numStrings = 0;
         for(File smaliFile : FileUtils.listFiles(analyzePath, new String[] { "smali" }, true)) {
-            if(!smaliFile.getPath().equals("data/com.tescobank.mobile-10003003.apk-smali/r/jjr.smali")) {
-                continue;
-            }
+//            if(!smaliFile.getPath().equals("data/com.tescobank.mobile-10003003.apk-smali/r/jjr.smali")) {
+//                continue;
+//            }
 
             // skip some well-known libraries
             if(!smaliFile.getPath().startsWith("data/" + apkName + "-smali/android") &&
@@ -75,7 +75,9 @@ public class Main {
 
         // decrypt them
         for(StringSnippet snippet : snippets) {
-            snippet.decrypt(database);
+            if(!database.hasSuccessfulDecryption(snippet)) {
+                snippet.decrypt(database);
+            }
         }
 
         database.setPreprocessed(apkName, numStrings);

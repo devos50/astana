@@ -169,6 +169,11 @@ public class StringSnippet {
             Pair<Integer, Integer> currentPair = stringDecryptPairs.get(i);
             currentStringDecryptedIndex = currentPair.getKey();
             currentStringResultRegister = currentPair.getValue();
+            isDecrypted = false;
+
+            if(database.isExecuted(this)) {
+                continue;
+            }
 
             computeSlice();
             if(!isValidSlice) {
@@ -184,6 +189,7 @@ public class StringSnippet {
             resultExecutionCode = decryptor.resultExecutionCode;
             resultStderr = decryptor.stderr;
             decryptedString = decryptor.stdout;
+            isDecrypted = true;
 
             database.updateSnippet(this);
             if(decryptionSuccessful) {
