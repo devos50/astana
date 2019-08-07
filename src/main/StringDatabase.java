@@ -85,8 +85,15 @@ public class StringDatabase {
         return rs.getBoolean(1);
     }
 
-    public void setPreprocessed(String apkPath, int numStrings) throws SQLException {
-        String sql = "UPDATE applications SET preprocessed = 1, num_strings = ? WHERE apk = ?";
+    public void setPreprocessed(String apkPath) throws SQLException {
+        String sql = "UPDATE applications SET preprocessed = 1 WHERE apk = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, apkPath);
+        preparedStatement.execute();
+    }
+
+    public void updateNumStrings(String apkPath, int numStrings) throws SQLException {
+        String sql = "UPDATE applications SET num_strings = ? WHERE apk = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setInt(1, numStrings);
         preparedStatement.setString(2, apkPath);

@@ -113,9 +113,11 @@ public class SmaliFileParser {
                     numStrings++;
 //                    System.out.println("Processing str: " + stringInitNode.value.toString());
                     List<Pair<Integer, Integer>> pairs = findPossibleStringDecryptionStatement(method, stmtIndex);
-                    StringSnippet snippet = new StringSnippet(apkPath, smaliFile, rootNode, method, stmtIndex);
-                    snippet.stringDecryptPairs = pairs;
-                    snippets.add(snippet);
+                    if(pairs.size() > 0) {
+                        StringSnippet snippet = new StringSnippet(apkPath, smaliFile, rootNode, method, stmtIndex);
+                        snippet.stringDecryptPairs = pairs;
+                        snippets.add(snippet);
+                    }
                 }
             }
         }

@@ -180,6 +180,7 @@ public class StringDecryptor {
             stderr = e.getMessage();
             resultExecutionCode = 1;
             e.printStackTrace();
+            p.destroy();
             return false;
         }
         return false;

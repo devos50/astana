@@ -72,6 +72,7 @@ public class Main {
         }
 
         System.out.println("Snippets: " + snippets.size());
+        database.updateNumStrings(apkName, numStrings);
 
         // decrypt them
         for(StringSnippet snippet : snippets) {
@@ -80,7 +81,7 @@ public class Main {
             }
         }
 
-        database.setPreprocessed(apkName, numStrings);
+        database.setPreprocessed(apkName);
         snippets = new ArrayList<>();
     }
 

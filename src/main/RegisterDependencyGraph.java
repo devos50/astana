@@ -216,7 +216,8 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, dependencyRegister);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.SGET || stmtNode.op == Op.SGET_BOOLEAN || stmtNode.op == Op.SGET_OBJECT || stmtNode.op == Op.SGET_WIDE || stmtNode.op == Op.SGET_SHORT || stmtNode.op == Op.SGET_CHAR) {
+            else if(stmtNode.op == Op.SGET || stmtNode.op == Op.SGET_BOOLEAN || stmtNode.op == Op.SGET_OBJECT || stmtNode.op == Op.SGET_WIDE ||
+                    stmtNode.op == Op.SGET_SHORT || stmtNode.op == Op.SGET_CHAR || stmtNode.op == Op.SGET_BYTE) {
                 // we are getting a field which is stored in a new register
                 FieldStmtNode fieldStmtNode = (FieldStmtNode) stmtNode;
                 RegisterDependencyNode newRegister = makeNewRegister(fieldStmtNode.a);
