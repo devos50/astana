@@ -241,7 +241,9 @@ public class RegisterDependencyGraph {
                 makeDependency(newRegister, dependencyRegister);
                 statementToRegister.get(currentStmtIndex).add(newRegister);
             }
-            else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR || stmtNode.op == Op.APUT_BYTE || stmtNode.op == Op.APUT_WIDE || stmtNode.op == Op.APUT_SHORT) {
+            else if(stmtNode.op == Op.APUT || stmtNode.op == Op.APUT_OBJECT || stmtNode.op == Op.APUT_CHAR ||
+                    stmtNode.op == Op.APUT_BYTE || stmtNode.op == Op.APUT_WIDE || stmtNode.op == Op.APUT_SHORT ||
+                    stmtNode.op == Op.APUT_BOOLEAN) {
                 Stmt3RNode castNode = (Stmt3RNode) stmtNode;
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.a));
                 makeDependency(getActiveRegister(castNode.b), getActiveRegister(castNode.c));
