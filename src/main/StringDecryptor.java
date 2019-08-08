@@ -37,7 +37,7 @@ public class StringDecryptor {
         this.database = database;
     }
 
-    public boolean decrypt() throws IOException, SQLException {
+    public boolean decrypt() throws IOException {
         String methodName = snippet.method.methodNode.method.getName();
 
         // create a method that is called by the main method
@@ -130,7 +130,17 @@ public class StringDecryptor {
             }
         };
         File smaliFile = new File("temp/isolated.smali");
-        Smali.smali(smaliFile.toPath(), dexFileVisitor);
+
+        try {
+            Smali.smali(smaliFile.toPath(), dexFileVisitor);
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            resultExecutionCode = 1;
+            stderr = e.getMessage();
+            return false;
+        }
+
         dexFileWriter.visitEnd();
         byte[] data = dexFileWriter.toByteArray();
         File dexFile = new File("temp/isolated.dex");
